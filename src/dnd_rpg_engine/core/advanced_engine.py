@@ -103,7 +103,7 @@ class AdvancedGameEngine(GameEngine):
         if name == "character.rest":
             profile_id = str(payload.get("profile_id", "long_rest"))
             outcome = self.character_lifecycle.rest(actor, profile_id)
-            self.combat.runtime.action_economy.reset_actor(actor.id)
+            self.combat.runtime.reset_turn(actor)
             await self._emit(
                 "character.rested",
                 actor_id=actor.id,
