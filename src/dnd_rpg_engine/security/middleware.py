@@ -7,13 +7,15 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
-from dnd_rpg_engine.security.models import Permission, ResourceRef
+from dnd_rpg_engine.security.models import Permission, ResourceRef, ScopeType
 from dnd_rpg_engine.security.tokens import TokenError
 
 _CAMPAIGN_PATH = re.compile(r"^/api/v1/campaigns/([^/]+)(/.*)?$")
 _BLOCKED_SECURE_PATHS = {
     ("POST", "/api/v1/campaigns"),
     ("GET", "/api/v1/campaigns"),
+    ("POST", "/api/v1/creator/instantiate"),
+    ("POST", "/api/v1/marketplace/publish"),
 }
 _PUBLIC_PREFIXES = (
     "/health",
@@ -23,15 +25,25 @@ _PUBLIC_PREFIXES = (
     "/static/",
     "/api/v1/auth/bootstrap",
 )
+_FINE_GRAINED_PREFIXES = (
+    "/api/v1/auth/",
+    "/api/v1/secure/",
+    "/api/v1/studio",
+    "/api/v1/reliable/",
+    "/api/v1/distributed/",
+    "/api/v1/packages/",
+    "/api/v1/simulation/",
+    "/api/v1/director/",
+)
 
 
 class IdentityMiddleware(BaseHTTPMiddleware):
-    """Authenticate requests and enforce coarse resource policy.
+    """Authenticate HTTP requests and close legacy authorization bypasses.
 
-    Fine-grained actor authorization remains in ``CampaignSession`` where the
-    authoritative command and actor ID are available. In required mode the
-    insecure legacy campaign create/list/join routes are disabled in favor of
-    authenticated secure equivalents.
+    Fine-grained policy stays in the resource-aware routers and
+    ``CampaignSession``. In required mode, older routes that accept caller-
+    supplied ownership or transport identity are disabled rather than being
+    allowed to undermine the authenticated API.
     """
 
     def __init__(self, app: Any, *, required: bool = False) -> None:
@@ -62,18 +74,28 @@ class IdentityMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         if self.required and (request.method, path) in _BLOCKED_SECURE_PATHS:
+            destination = "/api/v1/secure/campaigns" if "campaign" in path else "/api/v1/studio"
             return JSONResponse(
-                {"detail": "use the authenticated /api/v1/secure/campaigns endpoint"},
+                {"detail": f"legacy mutation disabled in authenticated mode; use {destination}"},
                 status_code=409,
             )
-        if self.required and path.endswith("/join") and _CAMPAIGN_PATH.match(path):
-            return JSONResponse(
-                {"detail": "use the authenticated /api/v1/secure/campaigns/{campaign_id}/join endpoint"},
-                status_code=409,
-            )
+        match = _CAMPAIGN_PATH.match(path)
+        if self.required and match:
+            suffix = match.group(2) or ""
+            if suffix.startswith("/join"):
+                return JSONResponse(
+                    {"detail": "use /api/v1/secure/campaigns/{campaign_id}/join"},
+                    status_code=409,
+                )
+            if suffix.startswith("/commands"):
+                return JSONResponse(
+                    {"detail": "use /api/v1/reliable/campaigns/{campaign_id}/commands"},
+                    status_code=409,
+                )
 
         try:
             await self._authorize_path(request, principal, service)
+            await self._verify_transport_binding(request, principal)
         except PermissionError as exc:
             await service.audit(
                 principal,
@@ -89,46 +111,48 @@ class IdentityMiddleware(BaseHTTPMiddleware):
 
     async def _authorize_path(self, request: Request, principal: Any, service: Any) -> None:
         path = request.url.path
-        if path.startswith("/api/v1/auth/") or path.startswith("/api/v1/secure/"):
-            return
-        if path.startswith("/api/v1/studio"):
-            permission = Permission.STUDIO_READ if request.method == "GET" else Permission.STUDIO_WRITE
-            if path.endswith("/publish"):
-                permission = Permission.STUDIO_PUBLISH
-            service.authorize(
-                principal,
-                permission,
-                ResourceRef(type="project", id="studio", project_id="studio"),
-            )
-            return
-        if path == "/api/v1/marketplace/publish":
-            service.authorize(
-                principal,
-                Permission.STUDIO_PUBLISH,
-                ResourceRef(type="project", id="marketplace", project_id="studio"),
-            )
+        if path.startswith(_FINE_GRAINED_PREFIXES):
             return
         match = _CAMPAIGN_PATH.match(path)
         if not match:
             return
         campaign_id, suffix = match.group(1), match.group(2) or ""
         engine = await request.app.state.rpg.get_engine(campaign_id)
-        owner_id = str(engine.state.metadata.get("owner_id", "")) or None
-        resource = ResourceRef(
-            type="campaign",
-            id=campaign_id,
-            campaign_id=campaign_id,
-            owner_user_id=owner_id,
-        )
+        resource = service.resource_for_scope(ScopeType.CAMPAIGN, campaign_id)
+        if not resource.owner_user_id and not resource.organization_id and not resource.workspace_id:
+            metadata = engine.state.metadata
+            resource = ResourceRef(
+                type="campaign",
+                id=campaign_id,
+                campaign_id=campaign_id,
+                owner_user_id=str(metadata.get("owner_id", "")) or None,
+                organization_id=str(metadata.get("organization_id", "")) or None,
+                workspace_id=str(metadata.get("workspace_id", "")) or None,
+            )
         if request.method == "GET":
             permission = Permission.CAMPAIGN_READ
-        elif suffix.startswith("/commands"):
-            permission = Permission.CAMPAIGN_CONTROL
         elif suffix.startswith("/characters"):
             permission = Permission.CAMPAIGN_CONTROL
         else:
             permission = Permission.CAMPAIGN_MANAGE
         service.authorize(principal, permission, resource)
+
+    async def _verify_transport_binding(self, request: Request, principal: Any) -> None:
+        match = _CAMPAIGN_PATH.match(request.url.path)
+        if not match:
+            return
+        client_id = request.headers.get("X-RPG-Client-ID")
+        if not client_id:
+            return
+        campaign_id = match.group(1)
+        try:
+            client = request.app.state.rpg.sessions.require(campaign_id).require_client(client_id)
+        except (KeyError, PermissionError) as exc:
+            raise PermissionError("unknown campaign client") from exc
+        if client.user_id != principal.user_id:
+            raise PermissionError("campaign client belongs to a different user")
+        if client.session_id and client.session_id != principal.session_id:
+            raise PermissionError("campaign client belongs to a different authenticated session")
 
     @staticmethod
     def _public(path: str) -> bool:
