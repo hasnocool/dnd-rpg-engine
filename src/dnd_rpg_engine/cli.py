@@ -21,7 +21,13 @@ from dnd_rpg_engine.core.models import (
     TimeMode,
 )
 from dnd_rpg_engine.core.persistence import SQLiteStore
-from dnd_rpg_engine.rulesets.srd_5_2_1 import OFFICIAL_SRD_SOURCE, fetch_official_srd_pdf
+from dnd_rpg_engine.rulesets.srd_5_2_1 import (
+    OFFICIAL_SRD_SOURCE,
+    SRDCatalogStore,
+    compile_srd_catalog,
+    encounter_budget,
+    fetch_official_srd_pdf,
+)
 
 app = typer.Typer(help="Deterministic RPG engine CLI.", no_args_is_help=True)
 
@@ -185,16 +191,67 @@ async def _fetch_srd(output: Path) -> None:
     typer.echo(str(destination))
 
 
+@app.command("compile-srd")
+def compile_srd(
+    pdf: Path = Path(".cache/srd/SRD_CC_v5.2.1.pdf"),
+    output: Path = Path(".cache/srd/srd_5_2_1.sqlite3"),
+) -> None:
+    """Compile the official SRD PDF into the offline structured catalog."""
+    manifest = asyncio.run(compile_srd_catalog(pdf, output))
+    typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@app.command("srd-catalog-info")
+def srd_catalog_info(catalog: Path = Path(".cache/srd/srd_5_2_1.sqlite3")) -> None:
+    """Show counts and provenance for a compiled offline SRD catalog."""
+    asyncio.run(_srd_catalog_info(catalog))
+
+
+async def _srd_catalog_info(catalog: Path) -> None:
+    store = SRDCatalogStore(catalog)
+    await store.initialize()
+    manifest = await store.manifest()
+    typer.echo(json.dumps({
+        "manifest": None if manifest is None else manifest.model_dump(mode="json"),
+        "sections": await store.sections(),
+    }, indent=2))
+
+
+@app.command("srd-search")
+def srd_search(
+    section: str,
+    query: str = "",
+    catalog: Path = Path(".cache/srd/srd_5_2_1.sqlite3"),
+    limit: int = 20,
+) -> None:
+    """Search one section of the compiled offline SRD catalog."""
+    asyncio.run(_srd_search(section, query, catalog, limit))
+
+
+async def _srd_search(section: str, query: str, catalog: Path, limit: int) -> None:
+    store = SRDCatalogStore(catalog)
+    await store.initialize()
+    typer.echo(json.dumps(await store.search(section, query, limit=limit), indent=2))
+
+
+@app.command("srd-encounter-budget")
+def srd_encounter_budget(levels: str, difficulty: str = "moderate") -> None:
+    """Calculate an SRD encounter XP budget for comma-separated party levels."""
+    parsed = [int(part.strip()) for part in levels.split(",") if part.strip()]
+    typer.echo(json.dumps({"levels": parsed, "difficulty": difficulty, "xp_budget": encounter_budget(parsed, difficulty)}, indent=2))
+
+
 @app.command()
 def serve(
     host: str = "127.0.0.1",
     port: int = 8000,
     database: Path = Path("rpg_engine.sqlite3"),
+    srd_catalog: Path | None = None,
 ) -> None:
     """Start REST/WebSocket/browser server."""
     import uvicorn
 
-    uvicorn.run(create_app(str(database)), host=host, port=port)
+    uvicorn.run(create_app(str(database), None if srd_catalog is None else str(srd_catalog)), host=host, port=port)
 
 
 @app.command("show-state")

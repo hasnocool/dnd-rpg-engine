@@ -7,15 +7,22 @@ from pydantic import BaseModel, Field
 class SpellDefinition(BaseModel):
     id: str
     name: str
+    level: int = Field(default=0, ge=0, le=9)
+    school: str | None = None
+    classes: set[str] = Field(default_factory=set)
     cast_time: float = Field(default=6.0, gt=0)
     range: float = Field(default=12.0, ge=0)
     energy_cost: int = Field(default=0, ge=0)
     attack_ability: str = "intelligence"
+    save_ability: str | None = None
     damage: str | None = None
     heal: str | None = None
     damage_type: str = "arcane"
     applies_condition: str | None = None
     duration: float | None = Field(default=None, gt=0)
+    concentration: bool = False
+    ritual: bool = False
+    components: tuple[str, ...] = ()
     interruptible: bool = True
     tags: set[str] = Field(default_factory=set)
 
