@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from dnd_rpg_engine import __version__
 from dnd_rpg_engine.api.hosting import router as hosting_router
 from dnd_rpg_engine.api.lifecycle import router as lifecycle_router
+from dnd_rpg_engine.api.rule_studio import router as rule_studio_router
 from dnd_rpg_engine.api.studio import router as studio_router
 from dnd_rpg_engine.api.world_platform import router as world_platform_router
 from dnd_rpg_engine.core.engine import GameEngine
@@ -63,5 +64,6 @@ def create_platform_app(
     app.include_router(lifecycle_router)
     app.include_router(hosting_router)
     app.include_router(studio_router)
+    app.include_router(rule_studio_router)
     app.include_router(world_platform_router)
     return app
