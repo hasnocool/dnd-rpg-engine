@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dnd-rpg-engine"
-version = "3.0.0"
+version = "3.0.1"
 description = "Headless deterministic fantasy RPG world platform with executable rules, campaign orchestration, simulation, knowledge authority, visual runtime sync, and distributed-world foundations."
 readme = "README.md"
 requires-python = ">=3.12"

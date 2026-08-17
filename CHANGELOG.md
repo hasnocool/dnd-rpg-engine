@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.1 - 2026-08-17
+
+### Changed
+- Maintenance release.
+
 ## 3.0.0 - 2026-08-16
 
 ### Added
