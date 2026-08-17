@@ -1,4 +1,3 @@
-# src/dnd_rpg_engine/creator/content.py
 from __future__ import annotations
 
 import hashlib
@@ -90,6 +89,7 @@ class RuleDocument(BaseModel):
     name: str
     settings: dict[str, Any] = Field(default_factory=dict)
     expressions: dict[str, str] = Field(default_factory=dict)
+    graph: dict[str, Any] = Field(default_factory=dict)
 
     def to_ruleset(self) -> RuleSet:
         allowed = set(RuleSet.model_fields) - {"id", "name"}
@@ -213,4 +213,9 @@ class ContentValidator:
             for edge in world_map.edges:
                 if edge.source not in world_map.nodes or edge.target not in world_map.nodes:
                     errors.append(f"map {world_map.id} has edge with missing node: {edge.source}->{edge.target}")
+        for rule in pack.rules.values():
+            if rule.graph:
+                nodes = rule.graph.get("nodes", {})
+                if not isinstance(nodes, (dict, list)) or not nodes:
+                    errors.append(f"rule {rule.id} executable graph requires nodes")
         return errors
