@@ -3,8 +3,20 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from dnd_rpg_engine.core.event_sourcing import CommandLedger, CommandReceipt, EventJournal, apply_patch, diff_json, state_hash
-from dnd_rpg_engine.core.models import CampaignState
+import pytest
+
+from dnd_rpg_engine.core.commands import WaitCommand
+from dnd_rpg_engine.core.engine import GameEngine
+from dnd_rpg_engine.core.event_sourcing import (
+    CommandLedger,
+    CommandReceipt,
+    EventJournal,
+    EventSourcedEngine,
+    apply_patch,
+    diff_json,
+    state_hash,
+)
+from dnd_rpg_engine.core.models import CampaignState, ControllerKind, Entity, EntityKind, GameConfig, TimeMode
 
 
 def test_json_patch_round_trip_is_deterministic() -> None:
@@ -53,3 +65,33 @@ def test_command_ledger_enforces_idempotent_result() -> None:
     ledger.register(receipt)
     assert ledger.get("same-command") == receipt
     ledger.register(receipt.model_copy())
+
+
+@pytest.mark.asyncio
+async def test_event_sourced_engine_is_idempotent_and_verifies_live_state() -> None:
+    engine = await GameEngine.create(config=GameConfig(time_mode=TimeMode.TURN_BASED, seed=17))
+    await engine.add_entity(
+        Entity(
+            id="hero",
+            name="Hero",
+            kind=EntityKind.PLAYER,
+            controller=ControllerKind.HUMAN,
+        )
+    )
+    sourced = EventSourcedEngine(engine)
+
+    first = await sourced.dispatch(WaitCommand(actor_id="hero", command_id="wait-1"))
+    assert first.journal_entry is not None
+    assert first.receipt.duplicate is False
+
+    duplicate = await sourced.dispatch(WaitCommand(actor_id="hero", command_id="wait-1"))
+    assert duplicate.receipt.duplicate is True
+    assert duplicate.result is None
+    assert duplicate.journal_entry is None
+    assert len(sourced.journal.entries) == 1
+
+    second = await sourced.dispatch(WaitCommand(actor_id="hero", command_id="wait-2"))
+    assert second.journal_entry is not None
+    assert len(sourced.journal.entries) == 2
+    assert sourced.verify().valid is True
+    assert sourced.replay().simulation_time == engine.state.simulation_time
