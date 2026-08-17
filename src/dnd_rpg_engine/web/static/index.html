@@ -1,73 +1,101 @@
+<!-- src/dnd_rpg_engine/web/static/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RPG Engine Browser Client</title>
+  <title>RPG Engine Workbench</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/workbench.css" />
 </head>
-<body>
-  <header>
-    <div>
-      <h1>RPG Engine</h1>
-      <p>Authoritative turn/time-driven campaign client</p>
+<body class="workbench-body">
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">RPG</span>
+      <div>
+        <h1>Campaign Workbench</h1>
+        <p id="header-context">Create, run, and inspect authoritative campaigns</p>
+      </div>
     </div>
-    <nav><a href="/creator">Creator</a><a href="/docs">API</a></nav>
+    <div class="header-actions">
+      <span id="socket-status" class="badge">offline</span>
+      <button id="refresh-current" class="ghost" disabled>Refresh</button>
+      <nav><a href="/creator">Creator Studio</a><a href="/docs">API</a></nav>
+    </div>
   </header>
 
-  <main class="layout">
-    <section class="panel controls">
-      <h2>Campaign</h2>
-      <label>Name <input id="campaign-name" value="Browser Campaign" /></label>
-      <label>Time mode
-        <select id="time-mode">
-          <option value="turn_based">Turn based</option>
-          <option value="timed_turn_based">Timed turn based</option>
-          <option value="real_time">Real time</option>
-          <option value="real_time_with_pause">Real time with pause</option>
-          <option value="hybrid" selected>Hybrid</option>
-        </select>
-      </label>
-      <label>Decision timeout <input id="decision-timeout" type="number" min="1" value="10" /></label>
-      <button id="create-campaign">Create campaign</button>
-      <div class="mono small" id="campaign-id">No campaign loaded.</div>
+  <main class="app-shell">
+    <aside class="rail">
+      <button class="rail-link active" data-view="library"><span>⌂</span> Campaigns</button>
+      <button class="rail-link" data-view="gm" disabled><span>♜</span> GM Console</button>
+      <button class="rail-link" data-view="player" disabled><span>⚔</span> Player View</button>
+      <button class="rail-link" data-view="world" disabled><span>◇</span> World</button>
+      <button class="rail-link" data-view="journal" disabled><span>☷</span> History</button>
+      <div class="rail-spacer"></div>
+      <a class="rail-link" href="/creator"><span>✎</span> Creator</a>
+    </aside>
 
-      <h2>Demo actors</h2>
-      <button id="add-demo" disabled>Add player + rival</button>
+    <section class="workspace">
+      <section id="view-library" class="view active">
+        <div class="view-title">
+          <div><span class="eyebrow">CAMPAIGN LIBRARY</span><h2>Your worlds</h2><p>Launch an existing campaign or create a new authoritative world.</p></div>
+          <button id="open-create" class="primary">New campaign</button>
+        </div>
+        <div class="dashboard-grid">
+          <section class="panel span-2">
+            <div class="panel-heading"><h3>Campaigns</h3><button id="reload-campaigns" class="ghost">Reload</button></div>
+            <div id="campaign-list" class="campaign-grid"><div class="empty">Loading campaigns…</div></div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading"><h3>Content</h3><button id="reload-marketplace" class="ghost">Refresh</button></div>
+            <p class="muted">Installed/published packs available through the engine registry.</p>
+            <div id="marketplace-list" class="stack compact"><div class="empty">Loading content…</div></div>
+            <a class="button-link" href="/creator">Open Creator Studio</a>
+          </section>
+        </div>
+      </section>
 
-      <h2>Actions</h2>
-      <label>Player
-        <select id="actor"></select>
-      </label>
-      <label>Target
-        <select id="target"></select>
-      </label>
-      <div class="button-grid">
-        <button id="action-basic" disabled>Basic action</button>
-        <button id="action-quick" disabled>Quick action</button>
-        <button id="cast" disabled>Arcane Bolt</button>
-        <button id="wait" disabled>Wait</button>
-      </div>
-      <label>Manual time advance (seconds) <input id="tick-seconds" type="number" min="0.1" step="0.5" value="2" /></label>
-      <button id="tick" disabled>Advance clock</button>
-    </section>
+      <section id="view-gm" class="view">
+        <div class="session-bar">
+          <div><span class="eyebrow">GM CONSOLE</span><h2 id="gm-campaign-name">Campaign</h2></div>
+          <div class="session-stats"><span id="gm-time">t=0</span><span id="gm-world">world —</span><span id="gm-weather">weather —</span></div>
+          <div class="session-actions"><button data-tick="1">+1s</button><button data-tick="10">+10s</button><button data-tick="60">+1m</button></div>
+        </div>
+        <div class="gm-grid">
+          <section class="panel scene-panel"><div class="panel-heading"><h3>Scenes</h3><button id="reload-director" class="ghost">Director</button></div><div id="scene-list" class="stack compact"></div></section>
+          <section class="panel map-panel"><div class="panel-heading"><h3 id="active-map-title">Active world</h3><span id="active-scene-badge" class="badge">no scene</span></div><div id="gm-map" class="world-stage"></div></section>
+          <section class="panel inspector-panel"><div class="panel-heading"><h3>Inspector</h3><button id="clear-inspector" class="ghost">Clear</button></div><div id="gm-inspector" class="inspector empty">Select an actor, scene, or proposal.</div></section>
+          <section class="panel timeline-panel"><div class="panel-heading"><h3>Timeline / Actors</h3><span id="ready-summary" class="muted"></span></div><div id="gm-timeline" class="timeline horizontal"></div></section>
+          <section class="panel events-panel"><div class="panel-heading"><h3>Authoritative event stream</h3><button id="load-history" class="ghost">Load history</button></div><div id="events" class="event-log mono"></div></section>
+          <section class="panel actions-panel"><h3>GM actions</h3><div class="stack compact"><label>Actor<select id="gm-actor"></select></label><label>Target<select id="gm-target"></select></label><div class="button-grid"><button id="gm-attack">Basic attack</button><button id="gm-wait">Wait</button></div><button id="gm-add-demo" class="ghost">Add training actors</button><button id="open-director" class="ghost">AI Director proposals</button></div></section>
+        </div>
+      </section>
 
-    <section class="panel state-panel">
-      <div class="panel-heading"><h2>Live state</h2><button id="refresh" disabled>Refresh</button></div>
-      <div class="panel-subheading"><span>Timeline</span><span id="timeline-summary" class="small"></span></div>
-      <div id="timeline" class="timeline"></div>
-      <div class="metrics" id="metrics"></div>
-      <div id="entities" class="cards"></div>
-    </section>
+      <section id="view-player" class="view">
+        <div class="session-bar"><div><span class="eyebrow">PLAYER VIEW</span><h2 id="player-campaign-name">Campaign</h2></div><div class="session-stats"><span id="player-identity">not joined</span><span id="player-time">t=0</span></div><button id="change-player" class="ghost">Change identity</button></div>
+        <div class="player-grid">
+          <section class="panel party-panel"><h3>My characters</h3><div id="player-actors" class="stack compact"></div></section>
+          <section class="panel map-panel"><div class="panel-heading"><h3>Known world</h3><span class="badge">knowledge scoped</span></div><div id="player-map" class="world-stage player-stage"></div></section>
+          <section class="panel character-panel"><h3>Character</h3><div id="player-character" class="inspector empty">Choose one of your characters.</div></section>
+          <section class="panel narrative-panel"><div class="panel-heading"><h3>Narrative / Events</h3><span class="muted">Only visible events should appear here.</span></div><div id="player-events" class="event-log mono"></div></section>
+          <section class="panel player-actions"><h3>Actions</h3><div class="stack compact"><label>Target<select id="player-target"></select></label><div class="button-grid"><button id="player-attack">Attack</button><button id="player-wait">Wait</button></div><button id="player-refresh-knowledge" class="ghost">Refresh knowledge</button></div></section>
+        </div>
+      </section>
 
-    <section class="panel event-panel">
-      <div class="panel-heading"><h2>Event stream</h2><span id="socket-status" class="badge">offline</span></div>
-      <div id="events" class="event-log mono"></div>
+      <section id="view-world" class="view">
+        <div class="view-title"><div><span class="eyebrow">WORLD STATE</span><h2>Campaign state explorer</h2><p>Inspect streamed entities, scene lifecycle, flags, and world metadata.</p></div></div>
+        <div class="dashboard-grid"><section class="panel span-2"><h3>Entities</h3><div id="world-entities" class="cards"></div></section><section class="panel"><h3>Metadata</h3><pre id="world-metadata" class="output mono"></pre></section></div>
+      </section>
+
+      <section id="view-journal" class="view">
+        <div class="view-title"><div><span class="eyebrow">EVENT HISTORY</span><h2>Campaign journal</h2><p>Persistent authoritative events for debugging, replay, and session review.</p></div><button id="journal-refresh" class="ghost">Refresh</button></div>
+        <section class="panel"><div id="journal-events" class="event-log journal mono"></div></section>
+      </section>
     </section>
   </main>
+
   <div id="modal-root" class="modal-root hidden"></div>
   <div id="toasts" class="toasts"></div>
-
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>
