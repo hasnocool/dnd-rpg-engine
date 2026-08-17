@@ -42,6 +42,9 @@ class AdvancedGameEngine(GameEngine):
 
         space = self.spatial.require(space_id)
         movement = actor.component("movement")
+        speed = float(movement.get("units_per_second", 1.5))
+        if speed <= 0:
+            raise ValueError("actor cannot move")
         budget_raw = movement.get("remaining", movement.get("budget"))
         budget = None if budget_raw is None else float(budget_raw)
 
@@ -78,7 +81,12 @@ class AdvancedGameEngine(GameEngine):
         destination = payload.get("destination")
         if destination is None:
             raise ValueError("spatial_move requires destination")
-        budget_raw = payload.get("budget", actor.component("movement").get("remaining"))
+
+        movement = actor.component("movement")
+        speed = float(movement.get("units_per_second", 1.5))
+        if speed <= 0:
+            raise ValueError("actor cannot move")
+        budget_raw = payload.get("budget", movement.get("remaining"))
         budget = None if budget_raw is None else float(budget_raw)
         validation = self.spatial.validate_move(space_id, actor.id, destination, budget=budget)
         if not validation.allowed:
@@ -110,12 +118,8 @@ class AdvancedGameEngine(GameEngine):
             actor.position.y = point.y
             actor.position.z = point.z
 
-        movement = actor.component("movement")
         if budget is not None:
             movement["remaining"] = max(0.0, budget - validation.cost)
-        speed = float(movement.get("units_per_second", 1.5))
-        if speed <= 0:
-            raise ValueError("actor cannot move")
         duration = max(0.25, validation.cost / speed)
         await self._emit(
             "entity.moved",
