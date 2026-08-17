@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — v4.0 Hero & NPC Experience
+
+### Added
+- Dedicated `/hero` Hero & NPC Workshop for first-class campaign-instance actor administration.
+- Lifecycle-backed Hero Creator with campaign selection, active class/equipment/rest/advancement catalog, character creation, browse/filter, and safe profile editing.
+- Owner-only NPC CRUD API and browser workflow with `NPCProfile`/live-entity synchronization.
+- NPC relationship editing for factions, personalities, dialogue graphs, shops, schedules, AI profiles, position, appearance, and knowledge metadata.
+- Workbench Hero Creator navigation and `Create Character / Hero` command-palette entry.
+- `docs/ACTORS_4_0.md` and refreshed README/API/architecture/Creator/Workbench/roadmap documentation through v4.0.
+
+### Changed
+- Documentation now distinguishes the released package version (`3.9.0`) from the implemented v4.0 roadmap milestone; this documentation pass does not perform a package release bump.
+- Creator Studio is documented as the reusable content-authoring surface, while `/hero` owns campaign-instance actor administration and `/` owns campaign operations/live play.
+
 ## 3.9.0 - 2026-08-17
 
 ### Added
