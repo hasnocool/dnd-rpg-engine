@@ -89,11 +89,11 @@ Run the Textual client:
 rpg-engine-tui
 ```
 
-Inspect the bundled SRD source metadata or cache the official PDF locally:
+Inspect the bundled SRD source metadata or cache the exact official SRD 5.2.1 PDF locally:
 
 ```bash
 rpg-engine srd-info
-rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.pdf
+rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.1.pdf
 ```
 
 ## Architecture
