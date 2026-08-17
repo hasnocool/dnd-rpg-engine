@@ -62,7 +62,11 @@ class AIDirector:
         quests = state.flags.get("quests", {})
         unresolved = 0
         if isinstance(quests, dict):
-            unresolved = sum(1 for value in quests.values() if not bool(value.get("complete", False)) if isinstance(value, dict))
+            unresolved = sum(
+                1
+                for value in quests.values()
+                if isinstance(value, dict) and not bool(value.get("complete", False))
+            )
         factions = {
             str(entity.component("faction").get("id"))
             for entity in state.entities.values()
@@ -91,15 +95,21 @@ class AIDirector:
         low_resources = 1.0 - snapshot.average_hp_fraction
         active_combat = SceneKind.ENCOUNTER.value in snapshot.active_scene_kinds
 
-        if snapshot.living_player_count and low_resources > 0.45:
-            utility = 0.55 + low_resources * 0.35
+        if snapshot.living_player_count and (low_resources > 0.45 or snapshot.recent_pressure > 0.80):
+            utility = 0.55 + max(low_resources * 0.35, (snapshot.recent_pressure - 0.80) * 0.6)
+            reasons: list[str] = []
+            if low_resources > 0.45:
+                reasons.append(f"party average HP is {snapshot.average_hp_fraction:.2f}")
+            if snapshot.recent_pressure > 0.80:
+                reasons.append(f"recent pressure is high at {snapshot.recent_pressure:.2f}")
+            reasons.append("avoid encounter pile-up")
             results.append(
                 DirectorProposal(
                     id="director:recovery-window",
                     kind=DirectorProposalKind.DOWNTIME,
                     utility=utility,
                     payload={"intent": "offer_recovery_window", "pressure_delta": -0.25},
-                    reasons=[f"party average HP is {snapshot.average_hp_fraction:.2f}", "avoid encounter pile-up"],
+                    reasons=reasons,
                     tags={"recovery", "pacing"},
                 )
             )
