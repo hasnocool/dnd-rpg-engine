@@ -15,14 +15,30 @@ from dnd_rpg_engine.core.models import CampaignState
 
 JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
 
+_JOURNAL_BOOKKEEPING_METADATA = frozenset({"command_ledger", "event_source_head"})
+
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _state_hash_payload(value: CampaignState | dict[str, Any]) -> dict[str, Any]:
+    payload = value.model_dump(mode="json") if isinstance(value, CampaignState) else copy.deepcopy(value)
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        for key in _JOURNAL_BOOKKEEPING_METADATA:
+            metadata.pop(key, None)
+    return payload
+
+
 def state_hash(value: CampaignState | dict[str, Any]) -> str:
-    payload = value.model_dump(mode="json") if isinstance(value, CampaignState) else value
-    return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+    """Hash authoritative campaign state while ignoring journal bookkeeping.
+
+    ``command_ledger`` and ``event_source_head`` describe the journal itself.
+    Excluding them prevents the act of recording a command from changing the
+    gameplay-state hash that the record is intended to verify.
+    """
+    return hashlib.sha256(canonical_json(_state_hash_payload(value)).encode("utf-8")).hexdigest()
 
 
 def _escape_pointer(value: str) -> str:
