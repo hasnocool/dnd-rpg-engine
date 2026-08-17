@@ -8,27 +8,36 @@ See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SR
 
 ## Current platform: 3.0.0
 
-The implemented roadmap now runs from the original simulation kernel through executable authored rules and persistent-world foundations.
+The implemented roadmap spans v0.1 through v3.0, from the original simulation kernel through executable authored rules and persistent-world foundations.
 
-| Milestone | Implemented |
+| Milestone | Key Features Implemented |
 | --- | --- |
-| v1.2 Rules Runtime | typed outcomes, modifiers, effects, triggers, reactions, action economy |
-| v1.3 Event Sourcing | deterministic patches, hash-chain journal, replay, rewind, branching, idempotency |
-| v1.4 Spatial Authority | graph/grid/continuous spaces, collision, occupancy, terrain, pathfinding, LOS, cover |
-| v1.5 Intelligent Actors | perception, goals, utility AI, behavior trees, tactical planning, schedules, persistent memories |
-| v1.6 Character Lifecycle | builder, multiclass progression, XP/milestones, resources, rests, equipment |
-| v1.7 Production Hosting | PostgreSQL, migrations, workers, leases, rendezvous routing, reconnect/resume |
-| v1.8 Creator Studio | persistent projects, revisions, visual maps, typed content editors, validation/export/publish |
-| **v1.9 Executable Rules** | bounded rule compiler, executable graphs, provenance, traces, visual graph editor |
-| **v2.0 Campaign Orchestrator** | authoritative scene lifecycle and active-world streaming sets |
-| **v2.1 Simulation Lab** | deterministic seed matrices, outcome statistics, balance/regression comparisons |
-| **v2.2 AI Director** | campaign-scale pacing/encounter/quest/faction proposals without direct mutation |
-| **v2.3 Knowledge Authority** | per-actor memory/facts, stale snapshots, knowledge-scoped HTTP/WebSocket views |
-| **v2.4 Visual Runtime SDK** | canonical snapshots, visual bindings, hash-verified client deltas |
-| **v2.5 Content Distribution** | versions, dependencies, engine constraints, signatures, locks, persistent registry |
-| **v3.0 Persistent Worlds** | shards, region routing, two-phase entity handoff, Lamport messages, persistent metadata |
-
-The earlier v0.1-v1.1 milestones—core simulation, tactical/adventure/living-world systems, frontends, Godot adapters, AI GM, multiplayer, creator platform, hosted campaigns, and SRD foundation—remain intact. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the complete checklist.
+| **v0.1 Core Simulation** | entities/components, commands, events, deterministic dice, stats/checks, async SQLite persistence |
+| **v0.2 Tactical RPG** | combat resolution, timeline actions, movement/path/LOS, initiative scheduling, conditions, items, delayed spells |
+| **v0.3 Adventure Engine** | graph maps, exploration, dialogue graphs, event-driven quests, NPC profiles, shops |
+| **v0.4 Living World** | simulation/world clocks, weather, factions/reputation, NPC schedules, supply/demand economy, dynamic events |
+| **v0.5 Multiple Frontends** | CLI, live text, Textual TUI, REST API, WebSocket, browser client |
+| **v0.6 Visual Adapters** | Godot 2D/3D bridges, actor bindings, scene/asset binding schema |
+| **v0.7 AI Game Master** | authoritative-event narrator, NPC personalities, encounter/quest generators, memory/context store |
+| **v0.8 Multiplayer** | authoritative campaign sessions, parties, spectators, actor ownership, campaign hosting |
+| **v0.9 Creator Platform** | campaign templates, map/creature/rules editors, safe ZIP mod format, mod loader/SDK |
+| **v1.0 RPG Platform** | persisted hosted campaigns, community pack registry, marketplace metadata/install, packaged clients, public OpenAPI |
+| **v1.1 SRD 5.2.1 Foundation** | opt-in SRD provenance, class/skill/species/background catalogs, proficiency/spellcasting, advantage/disadvantage, armor/damage traits, death saves |
+| **v1.2 Rules Runtime** | typed RulesRuntime, roll/attack/damage contexts, modifier traces, effects, reactions, action economy, capability declarations, SRD specialization |
+| **v1.3 Event Sourcing** | deterministic patches, SHA-256 state hashes, hash-chained journal, replay/rewind/branching, command-ID idempotency, live-state verification |
+| **v1.4 Spatial Authority** | graph/grid/continuous 2D/3D spaces, collision, occupancy, terrain, A*/Dijkstra, LOS, cover, movement budgets |
+| **v1.5 Intelligent Actors** | perception snapshots, goals, utility scoring, behavior trees, tactical planning, schedule-aware intent, persistent memories |
+| **v1.6 Character Lifecycle** | builder, multiclass progression, XP/milestones, level-up outcomes, class resources, rests, equipment/attunement, SRD adapter |
+| **v1.7 Production Hosting** | async PostgreSQL, migrations, simulation workers, PostgreSQL leases, rendezvous-hash placement, reconnect/resume tickets |
+| **v1.8 Creator Studio** | persistent projects, revision snapshots, SVG world-map editor, structured content editors, validation/export/publish |
+| **v1.9 Executable Rules** | bounded rule IR, deterministic compiler, graph hashes/provenance, rolls/damage/healing/resources/effects/reactions/branching/emit/stop ops, no eval/exec, visual graph editor |
+| **v2.0 Campaign Orchestrator** | typed scenes (exploration/encounter/dialogue/travel/downtime/settlement/dungeon), lifecycle (unloaded/loading/active/suspended/resolved/archived), scene-driven entity streaming |
+| **v2.1 Simulation Lab** | deterministic seed matrices, bounded concurrent execution, outcome rates, mean/median/stdev/min/max/p10/p90, regression deltas |
+| **v2.2 AI Director** | campaign-scale observation, ranked pacing/encounter/quest/faction/world/downtime proposals, proposal-only authority, owner-only API |
+| **v2.3 Knowledge Authority** | per-actor known entities/timestamps/facts/confidence, remembered snapshots (no stale hidden truth), knowledge-scoped views, player/owner/spectator visibility |
+| **v2.4 Visual Runtime SDK** | canonical/redacted snapshots, visual bindings (scene/sprite/model/animation), hash-verified deltas with base/target validation, transport-neutral |
+| **v2.5 Content Distribution** | semver metadata, dependency resolution/cycle detection, engine-version checks, topological install, content/lock hashes, signed releases, persistent registry, REST API |
+| **v3.0 Persistent Worlds** | shard registry with capacity/load/heartbeats, rendezvous-hash routing with region affinity, Lamport-ordered cross-shard messages, two-phase entity handoff (prepare/accept/commit/abort), canonical entity hashes, persistent distributed metadata |
 
 ## Three engine profiles
 
