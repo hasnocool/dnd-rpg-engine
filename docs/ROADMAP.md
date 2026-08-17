@@ -1,244 +1,46 @@
 # Roadmap status
 
-## v0.1 Core Simulation — complete
-- [x] entities/components
-- [x] commands
-- [x] events
-- [x] deterministic dice streams
-- [x] stats/checks
-- [x] async SQLite persistence and snapshots
+The implemented product roadmap now runs through **v4.0**.
 
-## v0.2 Tactical RPG — complete
-- [x] combat resolution
-- [x] timeline actions
-- [x] movement/path/LOS helpers
-- [x] deterministic initiative scheduling
-- [x] conditions and periodic effects
-- [x] items/inventory
-- [x] delayed spell resolution
+- **Released package:** `3.9.0`
+- **Implemented roadmap on `main`:** v0.1 → v4.0
+- **v4.0 release status:** feature set implemented, package/version release intentionally still pending
+- **Stable transport namespace:** `/api/v1`
 
-## v0.3 Adventure Engine — complete
-- [x] graph maps
-- [x] exploration/discoveries
-- [x] dialogue graphs and requirements
-- [x] event-driven quests
-- [x] NPC profiles
-- [x] shops
+The roadmap tracks product capability milestones, not only package tags. A milestone may therefore be implemented on `main` before a release commit advances package metadata.
 
-## v0.4 Living World — complete
-- [x] simulation/world clocks
-- [x] weather transitions
-- [x] factions/reputation
-- [x] NPC schedules
-- [x] supply/demand economy
-- [x] declarative dynamic events
+## Historical foundation — complete
 
-## v0.5 Multiple Frontends — complete
-- [x] CLI
-- [x] live text client
-- [x] Textual TUI
-- [x] REST API
-- [x] WebSocket events/commands
-- [x] browser client
+| Milestone | Status | Core capability |
+| --- | --- | --- |
+| v0.1 Core Simulation | complete | entities/components, commands/events, deterministic dice/checks, async SQLite persistence |
+| v0.2 Tactical RPG | complete | combat, timeline actions, movement/path/LOS, initiative, conditions, items, delayed spells |
+| v0.3 Adventure Engine | complete | graph maps, exploration, dialogue, quests, NPC profiles, shops |
+| v0.4 Living World | complete | clocks, weather, factions/reputation, NPC schedules, economy, dynamic events |
+| v0.5 Multiple Frontends | complete | CLI, live text, Textual TUI, REST, WebSocket, browser |
+| v0.6 Visual Game Adapters | complete | Godot 2D/3D bindings and scene/asset schema |
+| v0.7 AI Game Master | complete | narrator boundary, personalities, encounter/quest generation, bounded memory |
+| v0.8 Multiplayer | complete | authoritative sessions, parties, spectators, actor ownership, campaign hosting |
+| v0.9 Creator Platform | complete | templates/editors, validation, safe ZIP mod format, loader/SDK |
+| v1.0 RPG Platform | complete | persistent hosted campaigns, registry/marketplace, packaged clients, versioned OpenAPI |
+| v1.1 SRD 5.2.1 Foundation | complete | opt-in SRD catalogs/provenance, proficiency/spellcasting, armor/damage, death saves/conditions |
+| v1.2 Rules Runtime + Effect Pipeline | complete | typed rules runtime, modifier traces, effects, reactions, action economy, capabilities |
+| v1.3 Deterministic Event Sourcing | complete | canonical hashes, hash chain, replay/rewind/branches, command idempotency, verification |
+| v1.4 Spatial Authority | complete | graph/grid/continuous spaces, occupancy/collision, pathfinding, LOS/cover, terrain budgets |
+| v1.5 Intelligent Living Actors | complete | perception, goals, utility scoring, behavior trees, tactical planning, schedules, memories |
+| v1.6 Character Lifecycle | complete | builder, multiclass progression, XP/milestones, resources, rests, equipment/attunement |
+| v1.7 Production Campaign Hosting | complete | async PostgreSQL, migrations, workers, leases, placement, reconnect/resume |
+| v1.8 Creator Studio | complete | persistent projects/revisions, visual maps, structured editors, validation/export/publish |
+| v1.9 Executable Rules | complete | bounded deterministic rule graph/compiler/executor, hashes/provenance, visual graph editor |
+| v2.0 Campaign Orchestrator | complete | typed scenes, authoritative scene lifecycle, persisted scene state, streaming sets |
+| v2.1 Simulation Lab | complete | deterministic seed matrices, bounded concurrency, aggregate statistics, regression deltas |
+| v2.2 Advanced AI Director | complete | campaign-scale ranked proposals with reasons/utility and proposal-only authority |
+| v2.3 Perception + Knowledge Authority | complete | actor knowledge, remembered snapshots, facts/confidence, scoped owner/player/spectator views |
+| v2.4 Visual Runtime SDK | complete | canonical/redacted snapshots, bindings, hash-verified deltas, transport-neutral sync |
+| v2.5 Content Distribution Platform | complete | semver dependencies, compatibility, hashes/locks/signatures, persistent registry/API |
 
-## v0.6 Visual Game Adapters — complete
-- [x] Godot 2D bridge/binding
-- [x] Godot 3D bridge/binding
-- [x] scene/asset binding schema
+## v3.0 — Massively Persistent Worlds foundation — complete
 
-## v0.7 AI Game Master — complete
-- [x] authoritative-event narrator boundary
-- [x] NPC personality models
-- [x] procedural encounter generator
-- [x] generated quest system
-- [x] bounded memory/context
-
-## v0.8 Multiplayer — complete
-- [x] authoritative campaign sessions
-- [x] parties
-- [x] spectators
-- [x] actor ownership
-- [x] campaign hosting
-
-## v0.9 Creator Platform — complete
-- [x] campaign templates/editor
-- [x] map editor data model
-- [x] creature editor data model
-- [x] safe rules editor knobs
-- [x] mod SDK/validation/ZIP format
-- [x] campaign instantiation from packs
-
-## v1.0 RPG Platform — complete
-- [x] persisted hosted campaigns
-- [x] community content registry
-- [x] marketplace metadata/install flow
-- [x] packaged CLI/TUI/browser/Godot clients
-- [x] public versioned engine API/OpenAPI
-
-## v1.1 SRD 5.2.1 Foundation — complete
-- [x] opt-in SRD 5.2.1 provenance/licensing boundary
-- [x] skill/class/species/background/feat catalogs
-- [x] proficiency and spellcasting helpers
-- [x] advantage/disadvantage-aware attacks
-- [x] armor and damage traits
-- [x] temporary hit points and death-saving-throw state
-- [x] structured conditions and six-second round mapping
-
-## v1.2 Rules Runtime + Effect Pipeline — complete
-- [x] typed `RulesRuntime`
-- [x] typed roll/attack/damage contexts and outcomes
-- [x] explainable modifier traces
-- [x] deterministic effects and trigger hooks
-- [x] reaction opportunities
-- [x] per-actor action economy
-- [x] ruleset capability declarations
-- [x] `CombatSystem` runtime delegation
-- [x] SRD-specific runtime specialization
-
-## v1.3 Deterministic Event Sourcing — complete
-- [x] deterministic state patches
-- [x] canonical SHA-256 state hashes
-- [x] hash-chained journal entries
-- [x] replay and rewind
-- [x] branching campaign journals
-- [x] command-ID idempotency ledger
-- [x] live-state verification
-- [x] async persistence bridge for journal entries
-
-## v1.4 Spatial Authority — complete
-- [x] graph spaces with capacity and weighted routing
-- [x] grid spaces with terrain and occupancy
-- [x] continuous 2D/3D spaces
-- [x] collision and bounds checks
-- [x] authoritative movement budgets
-- [x] A*/Dijkstra pathfinding
-- [x] line-of-sight queries
-- [x] cover queries
-- [x] terrain movement costs
-
-## v1.5 Intelligent Living Actors — complete
-- [x] perception snapshots
-- [x] actor goals
-- [x] utility scoring
-- [x] behavior-tree primitives
-- [x] tactical planning to validated `GameCommand`s
-- [x] schedule-aware intent
-- [x] persistent component-backed memories
-- [x] authoritative-state-only observation boundary
-
-## v1.6 Character Lifecycle — complete
-- [x] ruleset-neutral character builder
-- [x] multiclass-compatible progression state
-- [x] XP and milestone advancement tracks
-- [x] level-up outcomes, hit-point growth, features, and ability-point grants
-- [x] ruleset-owned class resources
-- [x] short- and long-rest recovery profiles
-- [x] equipment slots, displacement, attunement, and aggregate modifiers
-- [x] lifecycle state stored in normal entity components for replay/save compatibility
-- [x] SRD class-catalog adapter and lifecycle-aware proficiency
-- [x] authoritative lifecycle commands/events and REST endpoints
-
-## v1.7 Production Campaign Hosting — complete
-- [x] async PostgreSQL persistence backend
-- [x] ordered schema migrations
-- [x] SQLite-compatible persistence contract
-- [x] simulation-worker registry and heartbeats
-- [x] PostgreSQL campaign leases preventing duplicate simulation ownership
-- [x] rendezvous-hash campaign placement with stable scale-out behavior
-- [x] capacity-aware campaign workers
-- [x] opaque reconnect/resume tickets stored by hash
-- [x] reconnect token rotation and event-sequence checkpoints
-- [x] missed-event replay after reconnect
-- [x] production host and worker CLI entrypoints
-
-## v1.8 Creator Studio — complete
-- [x] persistent typed Studio projects
-- [x] immutable revision snapshots and restore-as-new-revision workflow
-- [x] visual SVG world-map graph editor
-- [x] draggable map nodes and typed edge creation
-- [x] structured creature editor
-- [x] structured spell editor
-- [x] structured quest/objective editor
-- [x] structured rules editor
-- [x] structured campaign-template editor
-- [x] direct validation through the runtime `ContentValidator`
-- [x] validated export and marketplace publishing
-- [x] v1.8 platform application factory and health/version reporting
-- [x] main `rpg-engine serve` command launches the complete Studio-capable platform
-
-## v1.9 Executable Content Compiler + Rules Graph — complete
-- [x] bounded declarative executable-rule intermediate representation
-- [x] deterministic `RuleCompiler` with node/effect budgets and cross-reference validation
-- [x] canonical SHA-256 compiled graph hashes and provenance metadata
-- [x] roll, damage, healing, resource, effect, reaction, condition-flow, state, emit, and stop operations
-- [x] allowlisted state mutation paths; no `eval`, `exec`, Python, Lua, or arbitrary scripts
-- [x] deterministic execution-step budget and graph-hash verification
-- [x] RulesRuntime-backed execution and explainable per-node traces
-- [x] `RuleDocument.graph` content-pack/ZIP/hash integration
-- [x] authoritative `rule.execute` command integration in `WorldPlatformEngine`
-- [x] Creator Studio compiler-validation endpoint
-- [x] visual executable rule-graph editor with nodes, branches, arguments, entry point, capabilities, and compile/save feedback
-
-## v2.0 Campaign Orchestrator — complete
-- [x] typed exploration/encounter/dialogue/travel/downtime/settlement/dungeon/custom scenes
-- [x] authoritative unloaded/loading/active/suspended/resolved/archived lifecycle
-- [x] validated scene transitions and exclusive scene activation
-- [x] scene state persisted into campaign metadata
-- [x] active-scene and preload-driven entity streaming sets
-- [x] next-scene candidates and streamed-state projections
-- [x] scene registration/transition REST APIs
-
-## v2.1 Simulation Lab — complete
-- [x] deterministic seed matrices
-- [x] bounded concurrent scenario execution
-- [x] sample/outcome/event-count capture
-- [x] mean/median/stdev/min/max/p10/p90 metric summaries
-- [x] outcome rates and report comparison deltas
-- [x] retained or aggregate-only run modes
-- [x] regression tests proving stable aggregation
-
-## v2.2 Advanced AI Director — complete
-- [x] campaign-scale observation snapshot
-- [x] deterministic ranked pacing/encounter/quest/faction/world/downtime proposals
-- [x] explainable utility/reason output
-- [x] resource- and pressure-aware recovery/decompression behavior
-- [x] faction/world background motion proposals
-- [x] proposal-only authority boundary; director never directly mutates game truth
-- [x] owner-only director proposal API
-
-## v2.3 Perception + Knowledge Authority — complete
-- [x] per-actor known entities, observed-at timestamps, facts, confidence, sources, tags, and expiry
-- [x] perception ingestion into persistent actor components
-- [x] remembered entity snapshots rather than stale access to live hidden truth
-- [x] public-component filtering for observed non-self entities
-- [x] knowledge-scoped actor views
-- [x] owner-only omniscient runtime views
-- [x] player views limited to owned actors
-- [x] knowledge-scoped campaign GET/event history/WebSocket replacement for the v3 world profile
-- [x] spectator/public-shell behavior instead of omniscient state
-
-## v2.4 Visual Runtime SDK — complete
-- [x] deterministic full runtime snapshots
-- [x] KnowledgeView-derived redacted snapshots
-- [x] entity/scene/sprite/model/animation visual bindings
-- [x] hash-verified runtime deltas and client sync cursors
-- [x] deterministic add/replace/remove delta operations
-- [x] delta replay with base/target hash validation
-- [x] transport-neutral protocol suitable for browser, Godot, and remote clients
-
-## v2.5 Content Distribution Platform — complete
-- [x] semantic-version package metadata and version constraints
-- [x] dependency graph resolution and cycle detection
-- [x] engine-version compatibility checks
-- [x] deterministic topological install order
-- [x] package content hashes and dependency lock hashes
-- [x] signed release metadata with built-in HMAC-SHA256 private-registry signer interface
-- [x] upgrade planning
-- [x] persistent release and lock registry over SQLite/PostgreSQL JSON storage
-- [x] content distribution REST API
-- [x] Creator Studio publish-to-marketplace-and-distribution flow
-
-## v3.0 Massively Persistent Worlds — foundation complete
 - [x] world-shard registry with capacity/load/status/heartbeat state
 - [x] stable SHA-256 rendezvous routing with explicit region affinity
 - [x] shard expiration and deterministic region rebalance plans
@@ -250,9 +52,10 @@
 - [x] shared SQLite/PostgreSQL persistence contract for distributed metadata
 - [x] compatibility with production worker/campaign lease infrastructure from v1.7
 
-The v3.0 milestone establishes the deterministic persistence, routing, handoff, and authority primitives required to scale into multiple simulation processes. Production deployments can layer transport/service-discovery infrastructure around these interfaces without changing campaign, rules, or client contracts.
+The v3.0 milestone establishes deterministic persistence, routing, handoff, and authority primitives required to scale into multiple simulation processes. Production deployments can layer transport, service discovery, observability, and infrastructure around these interfaces without changing campaign/rules/client contracts.
 
-## v3.1 Unified Campaign Workbench — complete
+## v3.1 — Unified Campaign Workbench — complete
+
 - [x] campaign library/launcher
 - [x] separate GM and knowledge-scoped player surfaces
 - [x] world-state and persisted event-history views
@@ -260,7 +63,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] AI Director inspection
 - [x] live WebSocket event integration without client-side authority
 
-## v3.2 Session Operations + Tactical Play — complete
+## v3.2 — Session Operations + Tactical Play — complete
+
 - [x] dedicated tactical encounter workspace
 - [x] authoritative actor/target selection and action palette
 - [x] movement commands validated by SpatialAuthority
@@ -269,7 +73,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] action-economy/spatial summary
 - [x] character lifecycle sheet, rests, equipment, resources, XP, and level-up controls
 
-## v3.3 Full Creator Workbench — complete
+## v3.3 — Full Creator Workbench — complete
+
 - [x] typed `SceneDefinition` ContentPack section
 - [x] scene ZIP/hash/validation/runtime-install integration
 - [x] scene-flow graph based on `next_scene_ids`
@@ -278,7 +83,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] existing visual maps/rules/campaign editors retained
 - [x] revision/validation/export/publish flow retained across all sections
 
-## v3.4 Advanced GM Intelligence — complete
+## v3.4 — Advanced GM Intelligence — complete
+
 - [x] dedicated AI Director proposal dashboard
 - [x] proposal utility/reasons/payload display
 - [x] owner Accept/Dismiss decision workflow
@@ -286,7 +92,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] persisted Director decision history
 - [x] GM knowledge-authority matrix and fact/observation inspection
 
-## v3.5 Replay + Campaign Analytics — complete
+## v3.5 — Replay + Campaign Analytics — complete
+
 - [x] persisted event aggregation and type/actor/target counts
 - [x] numeric event totals and entity-health summary
 - [x] rules-event inspection for explainability
@@ -294,7 +101,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] persisted EventSourcedEngine journal discovery
 - [x] branch/rewind capability advertised only when event-source journal data exists
 
-## v3.6 Visual World Runtime — complete
+## v3.6 — Visual World Runtime — complete
+
 - [x] canonical owner RuntimeSnapshot inspector
 - [x] actor-scoped redacted RuntimeSnapshot inspector
 - [x] snapshot sequence/hash/facts/bindings display
@@ -302,7 +110,8 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] presentation-only grid/label controls
 - [x] server remains authoritative for movement/visibility/rules
 
-## v3.7 Campaign Automation — complete
+## v3.7 — Campaign Automation — complete
+
 - [x] installed NPC schedule observability
 - [x] installed dynamic-event observability
 - [x] simulation/world clock context
@@ -310,19 +119,79 @@ The v3.0 milestone establishes the deterministic persistence, routing, handoff, 
 - [x] authoring remains in typed Creator Studio
 - [x] trigger evaluation remains server-side living-world behavior
 
-## v3.8 Multiplayer Experience — complete
+## v3.8 — Multiplayer Experience — complete
+
 - [x] session lobby
 - [x] connected client/role/ownership visibility
 - [x] party creation
 - [x] party actor/user membership operations
 - [x] scene readiness/session state display
-- [x] existing sanitized player ownership and reconnect/resume boundaries retained
+- [x] sanitized player ownership and reconnect/resume boundaries retained
 
-## v3.9 Content Ecosystem — complete
+## v3.9 — Content Ecosystem — complete
+
 - [x] installed content-pack inventory and section summaries
 - [x] dependency manifest visibility
 - [x] distribution release browser
 - [x] dependency-lock inspection
 - [x] interactive distribution resolver
 - [x] Creator publication remains the package/release source
-- [x] package/API/browser version aligned at 3.9.0
+- [x] released package/API/browser version aligned at 3.9.0
+
+## v4.0 — Hero & NPC Experience — feature complete on `main`
+
+The v4.0 milestone turns player characters and NPCs into a first-class campaign-instance workflow. This is intentionally separate from Creator Studio, which remains the reusable content-authoring surface.
+
+### Hero Creator
+
+- [x] dedicated `/hero` Hero & NPC Workshop route
+- [x] Workbench navigation and `Create Character / Hero` command-palette entry
+- [x] campaign selection and owner identity workflow
+- [x] lifecycle-backed hero creation
+- [x] active class/equipment/rest/advancement catalog visibility
+- [x] class, starting level, species/ancestry, background, owner, XP, six ability scores, tags, starting equipment, appearance, portrait, and presentation metadata
+- [x] hero browse/filter workflow
+- [x] safe character edits for identity/presentation/base-stat fields
+- [x] class/level/XP/equipment/resource/rest authority remains in `CharacterLifecycle`
+
+### NPC Manager
+
+- [x] owner-only NPC list/create/read/update/delete APIs
+- [x] campaign-instance NPC browse/filter workflow
+- [x] `NPCProfile` ↔ live entity synchronization
+- [x] name, role, AI profile, six ability scores, HP/resources, position/map, tags, appearance, portrait, and knowledge metadata
+- [x] faction relationship
+- [x] personality relationship
+- [x] dialogue graph relationship
+- [x] shop relationship
+- [x] schedule relationship with server-side validation/assignment
+- [x] create/update/remove authoritative NPC events and persistence
+
+### Product boundary
+
+- [x] `/creator` remains reusable ContentPack/template authoring
+- [x] `/hero` owns campaign-instance actor creation/administration
+- [x] `/` remains campaign operations and live play
+- [x] browser surfaces never become authoritative rules/progression/AI engines
+
+### Release follow-up
+
+The v4.0 feature set is implemented, but the repository package metadata remains `3.9.0`. A future release change can intentionally advance package/changelog/version metadata to `4.0.0` after release validation; this documentation update does not perform that release bump.
+
+## Next roadmap boundary
+
+New feature planning should start at **v4.1**. The current milestone chain is therefore:
+
+```text
+v3.0 Persistent Worlds
+  → v3.1 Unified Workbench
+  → v3.2 Tactical Session
+  → v3.3 Full Creator
+  → v3.4 GM Intelligence
+  → v3.5 Replay + Analytics
+  → v3.6 Visual Runtime
+  → v3.7 Campaign Automation
+  → v3.8 Multiplayer UX
+  → v3.9 Content Ecosystem
+  → v4.0 Hero & NPC Experience
+```
