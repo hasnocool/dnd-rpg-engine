@@ -2,13 +2,13 @@
 
 A headless, deterministic fantasy RPG simulation platform that can power **turn-based, timed-turn, real-time, real-time-with-pause, hybrid, text, TUI, browser, 2D, 3D, and multiplayer games** from the same authoritative world state.
 
-The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It now includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
+The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
 
 See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SRD-5.2.md).
 
 ## What is implemented
 
-The full v0.1 → v1.0 roadmap is represented as working modules and integration points:
+The v0.1 → v1.8 roadmap is represented as working modules and integration points:
 
 | Milestone | Implemented |
 | --- | --- |
@@ -20,8 +20,16 @@ The full v0.1 → v1.0 roadmap is represented as working modules and integration
 | v0.6 Visual Adapters | Godot 4.7.x 2D/3D bridges, actor bindings, scene/asset binding schema |
 | v0.7 AI Game Master | authoritative-event narrator, NPC personality model, encounter generator, dynamic quest generator, memory/context store |
 | v0.8 Multiplayer | authoritative per-campaign command serialization, parties, spectators, client ownership, live campaign hosting |
-| v0.9 Creator Platform | campaign templates, map/creature/rules JSON editors, pack validation, safe ZIP mod format, mod loader/SDK |
-| v1.0 RPG Platform | persisted hosted campaigns, community pack registry, marketplace metadata/install flow, packaged CLI/TUI/browser clients, public OpenAPI |
+| v0.9 Creator Platform | campaign templates, map/creature/rules data models, pack validation, safe ZIP mod format, mod loader/SDK |
+| v1.0 RPG Platform | persisted hosted campaigns, community pack registry, marketplace metadata/install flow, packaged clients, public OpenAPI |
+| v1.1 SRD 5.2.1 Foundation | opt-in SRD provenance, class/skill/species/background catalogs, fifth-edition-compatible combat hooks |
+| v1.2 Rules Runtime | typed resolution contexts/outcomes, modifiers, effects, triggers, reactions, action economy, ruleset capabilities |
+| v1.3 Event Sourcing | deterministic patches, hash-chain journal, replay, rewind, branching, command idempotency, verification |
+| v1.4 Spatial Authority | graph/grid/continuous spaces, occupancy, collision, terrain, A*/Dijkstra, LOS, cover |
+| v1.5 Intelligent Actors | perception, goals, utility AI, behavior-tree primitives, tactical planning, schedules, persistent memories |
+| v1.6 Character Lifecycle | character builder, multiclass-compatible progression, XP/milestones, resources, rests, equipment, SRD adapter |
+| v1.7 Production Hosting | PostgreSQL, migrations, simulation workers, leases, rendezvous routing, reconnect/resume, missed-event replay |
+| v1.8 Creator Studio | persistent typed projects, revision history, visual SVG maps, structured editors, validation/export/publish |
 
 ## Time is a first-class subsystem
 
@@ -61,13 +69,19 @@ pip install -e '.[all,dev]'
 pytest
 ```
 
-Run the browser/API server:
+Run the complete local platform:
 
 ```bash
 rpg-engine serve --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/` for the browser client, `/creator` for the creator platform, or `/docs` for OpenAPI.
+Then open:
+
+- `http://127.0.0.1:8000/` — browser game client;
+- `/creator` — visual Creator Studio;
+- `/docs` — OpenAPI.
+
+`rpg-engine serve` uses `AdvancedGameEngine` by default and accepts either a local SQLite path or a PostgreSQL URL through `--database`.
 
 Run a timeline demo:
 
@@ -96,36 +110,60 @@ rpg-engine srd-info
 rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.1.pdf
 ```
 
+## Production hosting
+
+Install the PostgreSQL extra if you did not install `all`:
+
+```bash
+pip install -e '.[hosting]'
+```
+
+Start the platform against PostgreSQL:
+
+```bash
+RPG_DATABASE_URL='postgresql://user:pass@db.example/rpg' rpg-engine-host
+```
+
+Start simulation workers against the same database:
+
+```bash
+RPG_DATABASE_URL='postgresql://user:pass@db.example/rpg' \
+RPG_WORKER_CAPACITY=32 \
+rpg-engine-worker
+```
+
+Workers use stable rendezvous hashing for preferred campaign placement and PostgreSQL leases as the authoritative single-owner guard. Reconnect tickets are opaque, stored only by hash, rotate on successful resume, and carry an event checkpoint so clients can replay what they missed.
+
 ## Architecture
 
 ```text
-CLI / TUI / Browser / Godot 2D / Godot 3D / remote clients
-                           │
-                   commands / events
-                           │
-                 Authoritative Engine
-                           │
-      ┌────────────────────┼─────────────────────┐
-      │                    │                     │
- Timeline Scheduler   Tactical Systems     Living World
-      │                    │                     │
- actor readiness       actions/checks       world clock
- decision windows      movement/effects     weather
- delayed actions       conditions/items     factions
- cooldowns             spells               economy
-      │                    │                 schedules
-      └────────────────────┼─────────────────────┘
-                           │
-                   Adventure Systems
-                           │
-               maps/dialogue/quests/NPCs
-                           │
-                     Event Stream
-                           │
-         SQLite persistence / WebSocket fan-out
+CLI / TUI / Browser / Creator Studio / Godot / remote clients
+                              │
+                      commands / events
+                              │
+                    AdvancedGameEngine
+                              │
+      ┌───────────────┬───────┼───────────────┬────────────────┐
+      │               │       │               │                │
+ RulesRuntime   Character   Spatial      Intelligent        Living
+ + effects      lifecycle   authority      actors            world
+      │               │       │               │                │
+      └───────────────┴───────┴───────────────┴────────────────┘
+                              │
+                    deterministic state
+                              │
+                event journal / snapshots
+                              │
+                  persistence contract
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+                 SQLite            PostgreSQL
+               local/dev       production/shared
+                                        │
+                              workers + leases + resume
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/TIMING.md`](docs/TIMING.md).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/TIMING.md`](docs/TIMING.md), [`docs/RUNTIME_1_2_TO_1_5.md`](docs/RUNTIME_1_2_TO_1_5.md), and [`docs/RUNTIME_1_6_TO_1_8.md`](docs/RUNTIME_1_6_TO_1_8.md).
 
 ## Public API examples
 
@@ -142,15 +180,8 @@ Change timing at runtime:
 ```bash
 curl -X PATCH http://127.0.0.1:8000/api/v1/campaigns/CAMPAIGN_ID/timing \
   -H 'content-type: application/json' \
+  -H 'X-RPG-Client-ID: OWNER_CLIENT_ID' \
   -d '{"time_mode":"real_time","pause_when_player_ready":false}'
-```
-
-Start an encounter/initiative timeline:
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/campaigns/CAMPAIGN_ID/encounters \
-  -H 'content-type: application/json' \
-  -d '{"participant_ids":["hero","rival"]}'
 ```
 
 WebSocket clients connect to:
@@ -161,11 +192,29 @@ ws://127.0.0.1:8000/api/v1/campaigns/{campaign_id}/ws
 
 Clients send commands and consume events; they never calculate authoritative outcomes locally.
 
-## Creator/mod SDK
+Character lifecycle endpoints live below:
+
+```text
+/api/v1/campaigns/{campaign_id}/characters
+```
+
+Reconnect and hosting status endpoints are exposed through the same stable `/api/v1` namespace.
+
+## Creator Studio / mod SDK
 
 A `ContentPack` contains a manifest plus optional campaign templates, creature templates, actions, conditions, items, spells, maps, dialogues, quests, rules, and asset bindings. The SDK validates cross-references, computes a deterministic SHA-256 content hash, and exports/imports a bounded ZIP format with path traversal checks.
 
-The browser creator at `/creator` edits the major content sections as validated JSON. A campaign template can be instantiated directly through `POST /api/v1/creator/instantiate`.
+The browser Creator Studio at `/creator` now edits the actual typed `ContentPack` models instead of maintaining a separate raw-JSON-only format. It includes:
+
+- persistent Studio projects;
+- revision snapshots and restore;
+- a draggable SVG world-map graph editor;
+- structured creature, spell, quest, rules, and campaign forms;
+- validation through the runtime `ContentValidator`;
+- validated export;
+- marketplace publication.
+
+Studio APIs live under `/api/v1/studio`.
 
 ## Godot
 
@@ -177,7 +226,7 @@ adapters/godot3d/
 adapters/bindings/
 ```
 
-Godot owns rendering, animation, camera, audio, and local input. The Python server owns truth: timing, AI, checks, effects, state, and persistence.
+Godot owns rendering, animation, camera, audio, and local input. The Python server owns truth: timing, AI, checks, effects, state, character advancement, and persistence.
 
 ## AI Game Master boundary
 

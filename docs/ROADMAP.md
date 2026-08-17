@@ -125,3 +125,43 @@
 - [x] schedule-aware intent
 - [x] persistent component-backed memories
 - [x] authoritative-state-only observation boundary
+
+## v1.6 Character Lifecycle — complete
+- [x] ruleset-neutral character builder
+- [x] multiclass-compatible progression state
+- [x] XP and milestone advancement tracks
+- [x] level-up outcomes, hit-point growth, features, and ability-point grants
+- [x] ruleset-owned class resources
+- [x] short- and long-rest recovery profiles
+- [x] equipment slots, displacement, attunement, and aggregate modifiers
+- [x] lifecycle state stored in normal entity components for replay/save compatibility
+- [x] SRD class-catalog adapter and lifecycle-aware proficiency
+- [x] authoritative lifecycle commands/events and REST endpoints
+
+## v1.7 Production Campaign Hosting — complete
+- [x] async PostgreSQL persistence backend
+- [x] ordered schema migrations
+- [x] SQLite-compatible persistence contract
+- [x] simulation-worker registry and heartbeats
+- [x] PostgreSQL campaign leases preventing duplicate simulation ownership
+- [x] rendezvous-hash campaign placement with stable scale-out behavior
+- [x] capacity-aware campaign workers
+- [x] opaque reconnect/resume tickets stored by hash
+- [x] reconnect token rotation and event-sequence checkpoints
+- [x] missed-event replay after reconnect
+- [x] production host and worker CLI entrypoints
+
+## v1.8 Creator Studio — complete
+- [x] persistent typed Studio projects
+- [x] immutable revision snapshots and restore-as-new-revision workflow
+- [x] visual SVG world-map graph editor
+- [x] draggable map nodes and typed edge creation
+- [x] structured creature editor
+- [x] structured spell editor
+- [x] structured quest/objective editor
+- [x] structured rules editor
+- [x] structured campaign-template editor
+- [x] direct validation through the runtime `ContentValidator`
+- [x] validated export and marketplace publishing
+- [x] v1.8 platform application factory and health/version reporting
+- [x] main `rpg-engine serve` command launches the complete Studio-capable platform

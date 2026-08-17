@@ -30,6 +30,11 @@ def proficiency_bonus(level_or_cr: int) -> int:
 
 
 def character_level(entity: Entity) -> int:
+    lifecycle = entity.component("character")
+    classes = lifecycle.get("classes")
+    if isinstance(classes, dict) and classes:
+        total = sum(max(0, int(level)) for level in classes.values())
+        return max(1, min(20, total))
     raw = entity.component("progression").get("level", 1)
     return max(1, min(20, int(raw)))
 

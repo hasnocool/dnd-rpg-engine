@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from dnd_rpg_engine.ai.intelligence import Goal, GoalKind, IntelligentActorController
+from dnd_rpg_engine.characters.lifecycle import CharacterBuildRequest, CharacterLifecycle, default_character_lifecycle
 from dnd_rpg_engine.core.commands import CustomCommand, GameCommand, MoveCommand, WaitCommand
 from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.models import Entity
@@ -12,26 +13,154 @@ from dnd_rpg_engine.spatial import ContinuousSpace, GraphSpace, GridSpace, Spati
 
 
 class AdvancedGameEngine(GameEngine):
-    """Integrated v1.2-v1.5 engine profile.
+    """Integrated advanced engine profile.
 
     The base ``GameEngine`` stays backward compatible. This subclass opts a
-    campaign into runtime-owned advanced rules, authoritative spatial validation,
-    and the intelligent-actor planner while preserving the same command/event,
-    scheduler, persistence, and multiplayer contracts.
+    campaign into runtime-owned advanced rules, character lifecycle,
+    authoritative spatial validation, and the intelligent-actor planner while
+    preserving the same command/event, scheduler, persistence, and multiplayer
+    contracts.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.spatial = SpatialAuthority()
         self.actor_intelligence = IntelligentActorController()
+        self.character_lifecycle = default_character_lifecycle()
 
     def register_spatial_space(self, space: GraphSpace | GridSpace | ContinuousSpace) -> None:
         self.spatial.register(space)
 
+    def configure_character_lifecycle(self, lifecycle: CharacterLifecycle) -> None:
+        self.character_lifecycle = lifecycle
+
+    async def create_character(
+        self,
+        request: CharacterBuildRequest,
+        *,
+        ready_delay: float = 0.0,
+    ) -> Entity:
+        entity = self.character_lifecycle.build_character(request)
+        await self.add_entity(entity, ready_delay=ready_delay)
+        await self._emit(
+            "character.created",
+            actor_id=entity.id,
+            payload={
+                "class_id": request.class_id,
+                "starting_level": request.starting_level,
+                "species_id": request.species_id,
+                "background_id": request.background_id,
+            },
+        )
+        return entity
+
     async def _execute_command(self, command: GameCommand) -> float:
-        if isinstance(command, CustomCommand) and command.name == "spatial_move":
-            return await self._spatial_move(command)
+        if isinstance(command, CustomCommand):
+            if command.name.startswith("character."):
+                return await self._character_command(command)
+            if command.name == "spatial_move":
+                return await self._spatial_move(command)
         return await super()._execute_command(command)
+
+    async def _character_command(self, command: CustomCommand) -> float:
+        actor = self.state.require_entity(command.actor_id)
+        payload = command.payload
+        name = command.name
+        if name == "character.award_xp":
+            amount = int(payload.get("amount", 0))
+            progress = self.character_lifecycle.award_xp(actor, amount)
+            await self._emit(
+                "character.xp_awarded",
+                actor_id=actor.id,
+                payload={
+                    "amount": amount,
+                    "xp": progress.xp,
+                    "total_level": progress.total_level,
+                    "level_ready": self.character_lifecycle.eligible_for_level(actor),
+                },
+            )
+            return 0.0
+        if name == "character.level_up":
+            class_id = str(payload.get("class_id", ""))
+            if not class_id:
+                raise ValueError("character.level_up requires class_id")
+            outcome = self.character_lifecycle.level_up(actor, class_id)
+            await self._emit(
+                "character.leveled",
+                actor_id=actor.id,
+                payload=outcome.model_dump(mode="json"),
+            )
+            return 0.0
+        if name == "character.milestone_ready":
+            ready = bool(payload.get("ready", True))
+            self.character_lifecycle.mark_milestone_ready(actor, ready)
+            await self._emit(
+                "character.milestone_changed",
+                actor_id=actor.id,
+                payload={"ready": ready},
+            )
+            return 0.0
+        if name == "character.rest":
+            profile_id = str(payload.get("profile_id", "long_rest"))
+            outcome = self.character_lifecycle.rest(actor, profile_id)
+            self.combat.runtime.reset_turn(actor)
+            await self._emit(
+                "character.rested",
+                actor_id=actor.id,
+                payload=outcome.model_dump(mode="json"),
+            )
+            return outcome.duration_seconds
+        if name == "character.equip":
+            item_id = str(payload.get("item_id", ""))
+            if not item_id:
+                raise ValueError("character.equip requires item_id")
+            outcome = self.character_lifecycle.equip(actor, item_id)
+            await self._emit(
+                "character.equipment_changed",
+                actor_id=actor.id,
+                target_id=item_id,
+                payload=outcome.model_dump(mode="json"),
+            )
+            return 2.0
+        if name == "character.unequip":
+            item_id = str(payload.get("item_id", ""))
+            if not item_id:
+                raise ValueError("character.unequip requires item_id")
+            outcome = self.character_lifecycle.unequip(actor, item_id)
+            await self._emit(
+                "character.equipment_changed",
+                actor_id=actor.id,
+                target_id=item_id,
+                payload=outcome.model_dump(mode="json"),
+            )
+            return 2.0
+        if name == "character.spend_resource":
+            resource_id = str(payload.get("resource_id", ""))
+            amount = int(payload.get("amount", 1))
+            resource = self.character_lifecycle.spend_resource(actor, resource_id, amount)
+            await self._emit(
+                "character.resource_changed",
+                actor_id=actor.id,
+                target_id=resource_id,
+                payload={"resource": resource.model_dump(mode="json"), "delta": -amount},
+            )
+            return 0.0
+        if name == "character.restore_resource":
+            resource_id = str(payload.get("resource_id", ""))
+            amount = int(payload.get("amount", 1))
+            before = self.character_lifecycle.resources(actor)[resource_id].current
+            resource = self.character_lifecycle.restore_resource(actor, resource_id, amount)
+            await self._emit(
+                "character.resource_changed",
+                actor_id=actor.id,
+                target_id=resource_id,
+                payload={
+                    "resource": resource.model_dump(mode="json"),
+                    "delta": resource.current - before,
+                },
+            )
+            return 0.0
+        raise ValueError(f"unknown character lifecycle command: {name}")
 
     async def _move(self, command: MoveCommand) -> float:
         actor = self.state.require_entity(command.actor_id)
