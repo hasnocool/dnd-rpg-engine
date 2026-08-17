@@ -1,0 +1,72 @@
+.rule-graph-card {
+  margin-top: 18px;
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, .58);
+}
+.rule-graph-header, .rule-graph-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, #334155);
+  flex-wrap: wrap;
+}
+.rule-graph-header h3 { margin: 0; }
+.rule-graph-header small { opacity: .72; }
+.rule-graph-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rule-graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 390px;
+}
+.rule-graph-canvas-wrap {
+  min-width: 0;
+  overflow: auto;
+  background-image: radial-gradient(circle, rgba(148,163,184,.22) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+#rule-graph-canvas { width: 100%; min-width: 680px; height: 390px; display: block; }
+.rule-graph-edge { stroke: rgba(148,163,184,.7); stroke-width: 2; fill: none; }
+.rule-graph-edge.success { stroke: rgba(74,222,128,.82); }
+.rule-graph-edge.failure { stroke: rgba(248,113,113,.82); }
+.rule-graph-node rect {
+  fill: rgba(30,41,59,.96);
+  stroke: rgba(148,163,184,.72);
+  stroke-width: 2;
+  rx: 10;
+}
+.rule-graph-node.entry rect { stroke: rgba(56,189,248,.95); stroke-width: 3; }
+.rule-graph-node.selected rect { stroke: rgba(250,204,21,.98); stroke-width: 3; }
+.rule-graph-node text { fill: #e2e8f0; font-size: 13px; pointer-events: none; }
+.rule-graph-node .op { fill: #94a3b8; font-size: 11px; }
+.rule-graph-inspector {
+  border-left: 1px solid var(--border, #334155);
+  padding: 14px;
+  overflow: auto;
+}
+.rule-graph-inspector label { display: grid; gap: 5px; margin: 0 0 10px; }
+.rule-graph-inspector input, .rule-graph-inspector select { width: 100%; }
+.rule-arg-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  margin-bottom: 7px;
+  align-items: end;
+}
+.rule-arg-row button { padding: 6px 9px; }
+.rule-graph-status {
+  padding: 9px 14px;
+  border-top: 1px solid var(--border, #334155);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.rule-graph-status.good { color: #86efac; }
+.rule-graph-status.bad { color: #fca5a5; }
+@media (max-width: 1000px) {
+  .rule-graph-layout { grid-template-columns: 1fr; }
+  .rule-graph-inspector { border-left: 0; border-top: 1px solid var(--border, #334155); }
+}
