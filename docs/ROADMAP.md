@@ -1,10 +1,11 @@
 # Roadmap status
 
-The implemented product roadmap now runs through **v4.0**.
+The implemented product roadmap currently runs through **v4.0**. The next planned phase runs from **v4.1 through v5.0** and focuses on production authority, correctness, operability, compatibility, scale, multiplayer, and playability rather than another broad subsystem expansion.
 
 - **Released package:** `3.9.0`
 - **Implemented roadmap on `main`:** v0.1 → v4.0
 - **v4.0 release status:** feature set implemented, package/version release intentionally still pending
+- **Planned roadmap:** v4.1 → v5.0
 - **Stable transport namespace:** `/api/v1`
 
 The roadmap tracks product capability milestones, not only package tags. A milestone may therefore be implemented on `main` before a release commit advances package metadata.
@@ -176,11 +177,149 @@ The v4.0 milestone turns player characters and NPCs into a first-class campaign-
 
 ### Release follow-up
 
-The v4.0 feature set is implemented, but the repository package metadata remains `3.9.0`. A future release change can intentionally advance package/changelog/version metadata to `4.0.0` after release validation; this documentation update does not perform that release bump.
+The v4.0 feature set is implemented, but the repository package metadata remains `3.9.0`. A future release change can intentionally advance package/changelog/version metadata to `4.0.0` after release validation; this roadmap update does not perform that release bump.
 
-## Next roadmap boundary
+# Planned Production Authority & Playability phase
 
-New feature planning should start at **v4.1**. The current milestone chain is therefore:
+The next phase deliberately prioritizes integration and production depth. Detailed design and acceptance criteria live in [`PRODUCTION_AUTHORITY_4_1_TO_5_0.md`](PRODUCTION_AUTHORITY_4_1_TO_5_0.md).
+
+## v4.1 — End-to-End Campaign Runtime — planned
+
+- [ ] canonical playable campaign fixture
+- [ ] complete create → install → actors → scenes → play → save → restart → reconnect → replay flow
+- [ ] Campaign Certification Suite exercising the major existing subsystems together
+- [ ] deterministic final-state hash assertion
+- [ ] restart/resume equivalence
+- [ ] replay/branch verification
+- [ ] SQLite and PostgreSQL integration coverage where applicable
+
+**Primary goal:** prove the existing platform is one coherent gameplay runtime rather than a collection of individually correct subsystems.
+
+## v4.2 — Runtime Correctness — planned
+
+- [ ] formal invariant registry
+- [ ] Hypothesis property tests
+- [ ] deterministic randomized command sequences
+- [ ] replay verification after generated sequences
+- [ ] persistence/restart round trips
+- [ ] malformed ContentPack/rule graph fuzzing
+- [ ] ownership/permission fuzzing
+- [ ] concurrency and duplicate-command tests
+- [ ] worker lease contention tests
+- [ ] controlled failure/chaos injection
+
+## v4.3 — Identity + Authorization — planned
+
+- [ ] `IdentityProvider` abstraction
+- [ ] local identity provider
+- [ ] API-key provider
+- [ ] JWT provider
+- [ ] OAuth/OIDC provider interface
+- [ ] typed principals and campaign memberships
+- [ ] centralized authorization policy
+- [ ] privileged-operation audit records
+- [ ] negative authorization integration tests
+
+## v4.4 — Observability — planned
+
+- [ ] OpenTelemetry-compatible tracing
+- [ ] command/event/rules/AI/database/scheduler metrics
+- [ ] worker/lease/shard metrics
+- [ ] WebSocket queue/backpressure metrics
+- [ ] structured JSON logging
+- [ ] correlation and causation IDs
+- [ ] campaign/worker/shard runtime health diagnostics
+- [ ] replay-hash mismatch diagnostics
+
+## v4.5 — Scale + Performance — planned
+
+- [ ] reproducible benchmark harness
+- [ ] standard encounter/settlement/regional workloads
+- [ ] scheduler stress workload
+- [ ] million-event replay workload
+- [ ] content registry scale workload
+- [ ] knowledge projection workload
+- [ ] WebSocket fanout workload
+- [ ] distributed handoff workload
+- [ ] CPU/memory/DB/network profiling
+- [ ] CI performance baselines and regression thresholds
+
+## v4.6 — Player Experience — planned
+
+- [ ] dedicated `/player` surface
+- [ ] mobile-friendly responsive layout
+- [ ] character/HP/effects/resources presentation
+- [ ] authoritative action palette
+- [ ] narrative + tactical session convergence
+- [ ] knowledge-scoped player-only projections
+- [ ] automatic reconnect/resume UX
+- [ ] no GM-only diagnostics in player views
+
+## v4.7 — Campaign Import / Export — planned
+
+- [ ] portable campaign archive
+- [ ] deterministic manifest and integrity hash
+- [ ] dependency lock/content provenance capture
+- [ ] backup and restore
+- [ ] campaign cloning
+- [ ] archival/read-only state
+- [ ] import validation and migrations
+- [ ] optional redacted/player-safe export mode
+
+## v4.8 — Content Compatibility — planned
+
+- [ ] explicit schema versions for durable serialized formats
+- [ ] chained migration registry
+- [ ] ContentPack/campaign/snapshot/event/NPC/character/rule/Creator/distribution migrations
+- [ ] transport-independent command/event/snapshot/delta/error/capability envelopes
+- [ ] protocol/schema/engine version metadata
+- [ ] capability/deprecation negotiation
+- [ ] compatibility matrix
+- [ ] backward-compatibility fixtures
+
+## v4.9 — Production Multiplayer — planned
+
+- [ ] explicit command acknowledgement protocol
+- [ ] sequence-based reconnect/resume
+- [ ] bounded WebSocket queues and slow-consumer policy
+- [ ] presence and heartbeats
+- [ ] rate limiting
+- [ ] duplicate-command handling
+- [ ] disconnect/reconnect race tests
+- [ ] authorization-aware reconnect tickets
+- [ ] multi-worker failover tests
+- [ ] multiplayer soak tests
+
+## v5.0 — Production RPG Platform — planned
+
+v5.0 is a production-readiness convergence milestone rather than another standalone feature bundle.
+
+- [ ] stable authoritative runtime certification
+- [ ] end-to-end campaign certification
+- [ ] deterministic replay guarantees
+- [ ] invariant/property/fuzz coverage
+- [ ] hardened identity and authorization
+- [ ] production metrics/tracing/logging
+- [ ] benchmarked scale envelopes
+- [ ] dedicated player UX
+- [ ] campaign portability and backup/restore
+- [ ] schema migration guarantees
+- [ ] protocol compatibility contracts
+- [ ] production multiplayer/reconnect behavior
+- [ ] SQLite/PostgreSQL deployment validation
+- [ ] multi-worker/persistent-world failover and recovery validation
+
+## Cross-cutting initiatives
+
+These support several milestones and should progress alongside the versioned roadmap:
+
+- strengthen CI with Ruff, formatting, typing, coverage thresholds, property tests, security scanning, package/wheel/Docker builds, PostgreSQL integration, WebSocket testing, replay/hash checks, and repeated determinism tests;
+- keep API composition thin by splitting dependencies, routers, schemas, and app-factory responsibilities before `app.py`/Workbench modules become monoliths;
+- add explicit schema evolution to all durable formats;
+- define transport-independent protocol envelopes and correlation/causation metadata;
+- validate distributed operation in stages: single process → multi-worker → failover → multi-shard → cross-shard recovery.
+
+## Milestone chain
 
 ```text
 v3.0 Persistent Worlds
@@ -194,4 +333,16 @@ v3.0 Persistent Worlds
   → v3.8 Multiplayer UX
   → v3.9 Content Ecosystem
   → v4.0 Hero & NPC Experience
+  → v4.1 End-to-End Campaign Runtime
+  → v4.2 Runtime Correctness
+  → v4.3 Identity + Authorization
+  → v4.4 Observability
+  → v4.5 Scale + Performance
+  → v4.6 Player Experience
+  → v4.7 Campaign Import / Export
+  → v4.8 Content Compatibility
+  → v4.9 Production Multiplayer
+  → v5.0 Production RPG Platform
 ```
+
+The highest-priority next implementation is **v4.1 End-to-End Campaign Runtime + Campaign Certification Suite**.
