@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 from typing import Any
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from dnd_rpg_engine.api.security_helpers import campaign_resource, identity_service, require_principal
@@ -14,7 +15,7 @@ from dnd_rpg_engine.multiplayer.reliable import (
     SequenceGapError,
     Subscription,
 )
-from dnd_rpg_engine.security.models import Permission
+from dnd_rpg_engine.security.models import Permission, ScopeType
 from dnd_rpg_engine.security.tokens import TokenError
 
 router = APIRouter(prefix="/api/v1/reliable", tags=["reliable-multiplayer"])
@@ -126,7 +127,7 @@ async def reliable_websocket(websocket: WebSocket, campaign_id: str) -> None:
         client = session.require_client(client_id)
         if client.user_id != principal.user_id or (client.session_id and client.session_id != principal.session_id):
             raise TokenError("campaign client belongs to a different authenticated session")
-        resource = app.state.identity.resource_for_scope(__import__("dnd_rpg_engine.security.models", fromlist=["ScopeType"]).ScopeType.CAMPAIGN, campaign_id)
+        resource = app.state.identity.resource_for_scope(ScopeType.CAMPAIGN, campaign_id)
         app.state.identity.authorize(principal, Permission.CAMPAIGN_READ, resource)
         engine = await app.state.rpg.get_engine(campaign_id)
     except (TokenError, PermissionError, KeyError) as exc:
@@ -157,8 +158,9 @@ async def reliable_websocket(websocket: WebSocket, campaign_id: str) -> None:
             kind = data.get("kind")
             if kind == "command":
                 try:
+                    request_id = str(data.get("request_id") or data.get("id") or uuid4())
                     envelope = ReliableCommandEnvelope(
-                        request_id=data.get("request_id") or data.get("id"),
+                        request_id=request_id,
                         client_id=client_id,
                         client_sequence=int(data["client_sequence"]),
                         command=dict(data["command"]),
@@ -183,6 +185,8 @@ async def reliable_websocket(websocket: WebSocket, campaign_id: str) -> None:
                 await outgoing.put({"kind": "subscribed", "subscription": subscription.model_dump(mode="json")})
             elif kind == "state":
                 await outgoing.put({"kind": "state", "state": engine.state_payload()})
+            else:
+                await outgoing.put({"kind": "error", "status": 400, "detail": "unknown reliable message kind"})
 
     tasks = [asyncio.create_task(send_loop()), asyncio.create_task(event_loop()), asyncio.create_task(receive_loop())]
     try:
