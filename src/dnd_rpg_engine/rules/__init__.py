@@ -1,6 +1,16 @@
-# src/dnd_rpg_engine/rules/__init__.py
-"""Typed rules runtime, effect pipeline, reactions, and action economy."""
+"""Typed rules runtime, executable rule graphs, effects, reactions, and action economy."""
 
+from dnd_rpg_engine.rules.compiler import (
+    ExecutableRuleGraph,
+    RuleCompiler,
+    RuleExecutionContext,
+    RuleExecutionResult,
+    RuleExecutor,
+    RuleNode,
+    RuleOp,
+    RuleProvenance,
+    RuleStepTrace,
+)
 from dnd_rpg_engine.rules.effects import (
     EffectDefinition,
     EffectInstance,
@@ -35,6 +45,7 @@ __all__ = [
     "EffectOperation",
     "EffectPipeline",
     "EffectTrigger",
+    "ExecutableRuleGraph",
     "Modifier",
     "ModifierKind",
     "ReactionOpportunity",
@@ -42,6 +53,14 @@ __all__ = [
     "RollOutcome",
     "RollRequest",
     "RuleCapability",
+    "RuleCompiler",
+    "RuleExecutionContext",
+    "RuleExecutionResult",
+    "RuleExecutor",
+    "RuleNode",
+    "RuleOp",
+    "RuleProvenance",
+    "RuleStepTrace",
     "RulesRuntime",
     "create_runtime",
     "register_runtime",
