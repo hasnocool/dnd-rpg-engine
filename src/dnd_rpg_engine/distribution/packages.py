@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 from dataclasses import dataclass
+from functools import total_ordering
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -11,7 +12,8 @@ from pydantic import BaseModel, Field
 _SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?$")
 
 
-@dataclass(frozen=True, order=True, slots=True)
+@total_ordering
+@dataclass(frozen=True, slots=True)
 class SemanticVersion:
     major: int
     minor: int
@@ -28,6 +30,25 @@ class SemanticVersion:
     def __str__(self) -> str:
         base = f"{self.major}.{self.minor}.{self.patch}"
         return f"{base}-{self.prerelease}" if self.prerelease else base
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, SemanticVersion):
+            return NotImplemented
+        core = (self.major, self.minor, self.patch)
+        other_core = (other.major, other.minor, other.patch)
+        if core != other_core:
+            return core < other_core
+        if not self.prerelease:
+            return False if not other.prerelease else False
+        if not other.prerelease:
+            return True
+        return self._prerelease_key() < other._prerelease_key()
+
+    def _prerelease_key(self) -> tuple[tuple[int, int | str], ...]:
+        return tuple(
+            (0, int(part)) if part.isdigit() else (1, part)
+            for part in self.prerelease.split(".")
+        )
 
 
 class VersionConstraint(BaseModel):
