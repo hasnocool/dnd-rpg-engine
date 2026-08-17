@@ -1,6 +1,8 @@
 # tests/test_srd_5_2_1.py
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from dnd_rpg_engine.core.engine import GameEngine
@@ -67,8 +69,11 @@ def test_temporary_hit_points_absorb_damage_without_stacking() -> None:
     assert resources.hp == 8
 
 
-@pytest.mark.asyncio
-async def test_srd_conditions_drive_advantage_disadvantage() -> None:
+def test_srd_conditions_drive_advantage_disadvantage() -> None:
+    asyncio.run(_srd_conditions_drive_advantage_disadvantage())
+
+
+async def _srd_conditions_drive_advantage_disadvantage() -> None:
     engine = await GameEngine.create("SRD test")
     pack = build_srd_5_2_1_pack()
     install_content_pack(engine, pack)
@@ -91,8 +96,11 @@ async def test_srd_conditions_drive_advantage_disadvantage() -> None:
     assert resolution.roll == min(resolution.raw_rolls)
 
 
-@pytest.mark.asyncio
-async def test_srd_zero_hp_starts_death_saves_for_player() -> None:
+def test_srd_zero_hp_starts_death_saves_for_player() -> None:
+    asyncio.run(_srd_zero_hp_starts_death_saves_for_player())
+
+
+async def _srd_zero_hp_starts_death_saves_for_player() -> None:
     engine = await GameEngine.create("SRD death saves")
     pack = build_srd_5_2_1_pack()
     install_content_pack(engine, pack)
