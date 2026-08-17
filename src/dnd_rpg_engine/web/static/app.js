@@ -1,6 +1,7 @@
 // src/dnd_rpg_engine/web/static/app.js
 const $ = (id) => document.getElementById(id);
 let campaignId = null;
+let clientId = null;
 let socket = null;
 let state = null;
 
@@ -9,7 +10,9 @@ function enableGame(enabled) {
 }
 
 async function jsonFetch(url, options = {}) {
-  const response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (clientId) headers["X-RPG-Client-ID"] = clientId;
+  const response = await fetch(url, { ...options, headers });
   const body = await response.json();
   if (!response.ok) throw new Error(body.detail ? JSON.stringify(body.detail) : response.statusText);
   return body;
@@ -28,6 +31,7 @@ async function createCampaign() {
     }),
   });
   campaignId = body.campaign_id;
+  clientId = body.owner_client_id;
   $("campaign-id").textContent = campaignId;
   enableGame(true);
   connectSocket();
@@ -118,7 +122,7 @@ function fillSelect(select, entities, previous) {
 function connectSocket() {
   if (socket) socket.close();
   const scheme = location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${scheme}://${location.host}/api/v1/campaigns/${campaignId}/ws`);
+  socket = new WebSocket(`${scheme}://${location.host}/api/v1/campaigns/${campaignId}/ws?client_id=${encodeURIComponent(clientId)}`);
   socket.onopen = () => { $("socket-status").textContent = "online"; $("socket-status").classList.add("online"); };
   socket.onclose = () => { $("socket-status").textContent = "offline"; $("socket-status").classList.remove("online"); };
   socket.onmessage = (message) => {

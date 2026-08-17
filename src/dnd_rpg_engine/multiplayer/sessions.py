@@ -32,9 +32,35 @@ class CampaignSession:
         self._command_lock = asyncio.Lock()
 
     def join(self, identity: ClientIdentity) -> None:
+        # The session layer is an authorization boundary, not an identity provider.
+        # It never trusts a caller-provided OWNER role or arbitrary actor IDs.
         if identity.user_id == self.owner_id:
             identity.role = ClientRole.OWNER
+            identity.actor_ids.clear()
+        else:
+            if identity.role is ClientRole.OWNER:
+                identity.role = ClientRole.PLAYER
+            owned_actor_ids = {
+                entity.id
+                for entity in self.engine.state.entities.values()
+                if entity.owner_id == identity.user_id
+            }
+            identity.actor_ids.intersection_update(owned_actor_ids)
+            if identity.role is ClientRole.PLAYER and not identity.actor_ids:
+                identity.actor_ids = owned_actor_ids
         self.clients[identity.client_id] = identity
+
+    def require_client(self, client_id: str) -> ClientIdentity:
+        try:
+            return self.clients[client_id]
+        except KeyError as exc:
+            raise PermissionError("unknown campaign client") from exc
+
+    def require_owner(self, client_id: str) -> ClientIdentity:
+        identity = self.require_client(client_id)
+        if identity.role is not ClientRole.OWNER:
+            raise PermissionError("campaign owner permission required")
+        return identity
 
     def leave(self, client_id: str) -> None:
         self.clients.pop(client_id, None)

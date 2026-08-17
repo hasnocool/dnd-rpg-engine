@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -48,6 +48,24 @@ class ApplicationState:
         await self.ensure_realtime(campaign_id, engine)
         await self.ensure_broadcast(campaign_id, engine)
         return engine
+
+    def require_client(self, campaign_id: str, client_id: str | None):
+        if not client_id:
+            raise HTTPException(status_code=401, detail="campaign client id required")
+        try:
+            return self.sessions.require(campaign_id).require_client(client_id)
+        except (KeyError, PermissionError) as exc:
+            raise HTTPException(status_code=401, detail="unknown campaign client") from exc
+
+    def require_owner(self, campaign_id: str, client_id: str | None):
+        if not client_id:
+            raise HTTPException(status_code=401, detail="campaign client id required")
+        try:
+            return self.sessions.require(campaign_id).require_owner(client_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="campaign session not found") from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     async def ensure_realtime(self, campaign_id: str, engine: GameEngine) -> None:
         if campaign_id in self.realtime_tasks or not engine.config.realtime_enabled:
@@ -147,8 +165,13 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         return engine.state_payload()
 
     @app.patch("/api/v1/campaigns/{campaign_id}/timing")
-    async def update_timing(campaign_id: str, request: UpdateTimingRequest) -> dict[str, Any]:
+    async def update_timing(
+        campaign_id: str,
+        request: UpdateTimingRequest,
+        client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
+        state.require_owner(campaign_id, client_id)
         kwargs: dict[str, Any] = {}
         if "time_mode" in request.model_fields_set:
             kwargs["time_mode"] = request.time_mode
@@ -163,16 +186,26 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         return config.model_dump(mode="json")
 
     @app.post("/api/v1/campaigns/{campaign_id}/encounters")
-    async def start_encounter(campaign_id: str, request: EncounterRequest) -> dict[str, object]:
+    async def start_encounter(
+        campaign_id: str,
+        request: EncounterRequest,
+        client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, object]:
         engine = await state.get_engine(campaign_id)
+        state.require_owner(campaign_id, client_id)
         try:
             return await engine.start_encounter(request.participant_ids)
         except (ValueError, KeyError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.delete("/api/v1/campaigns/{campaign_id}/encounters/{encounter_id}")
-    async def end_encounter(campaign_id: str, encounter_id: str) -> dict[str, str]:
+    async def end_encounter(
+        campaign_id: str,
+        encounter_id: str,
+        client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, str]:
         engine = await state.get_engine(campaign_id)
+        state.require_owner(campaign_id, client_id)
         try:
             await engine.end_encounter(encounter_id)
         except KeyError as exc:
@@ -180,8 +213,13 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         return {"status": "ended"}
 
     @app.post("/api/v1/campaigns/{campaign_id}/entities")
-    async def create_entity(campaign_id: str, request: CreateEntityRequest) -> dict[str, Any]:
+    async def create_entity(
+        campaign_id: str,
+        request: CreateEntityRequest,
+        client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
+        state.require_owner(campaign_id, client_id)
         entity = Entity(
             id=request.id or str(uuid4()),
             name=request.name,
@@ -198,17 +236,22 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         return {"entity": entity.model_dump(mode="json"), "event": event.model_dump(mode="json")}
 
     @app.post("/api/v1/campaigns/{campaign_id}/commands")
-    async def command(campaign_id: str, request: CommandRequest) -> dict[str, Any]:
+    async def command(
+        campaign_id: str,
+        request: CommandRequest,
+        header_client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
+        client_id = request.client_id or header_client_id
+        state.require_client(campaign_id, client_id)
         try:
             parsed = parse_command(request.command)
-            if request.client_id and campaign_id in state.sessions.sessions:
-                result = await state.sessions.require(campaign_id).dispatch(request.client_id, parsed)
-                if request.narrate:
-                    result.narration = await engine.gm.narrate(engine.state, result.events)
-            else:
-                result = await engine.dispatch(parsed, narrate=request.narrate)
-        except (ValueError, KeyError, PermissionError, RuntimeError) as exc:
+            result = await state.sessions.require(campaign_id).dispatch(client_id, parsed)
+            if request.narrate:
+                result.narration = await engine.gm.narrate(engine.state, result.events)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except (ValueError, KeyError, RuntimeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {
             "version": result.version,
@@ -218,8 +261,13 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         }
 
     @app.post("/api/v1/campaigns/{campaign_id}/tick")
-    async def tick(campaign_id: str, request: TickRequest) -> dict[str, Any]:
+    async def tick(
+        campaign_id: str,
+        request: TickRequest,
+        client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+    ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
+        state.require_owner(campaign_id, client_id)
         result = await engine.tick(request.seconds, narrate=request.narrate)
         return {
             "version": result.version,
@@ -316,6 +364,7 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
             await websocket.close(code=4404)
             return
         await state.ensure_broadcast(campaign_id, engine)
+        client_id = websocket.query_params.get("client_id")
         state.websocket_clients.setdefault(campaign_id, set()).add(websocket)
         await websocket.send_json({"kind": "state", "state": engine.state_payload()})
         try:
@@ -323,8 +372,13 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
                 data = await websocket.receive_json()
                 if data.get("kind") == "command":
                     try:
+                        if not client_id:
+                            raise PermissionError("campaign client id required for commands")
+                        state.require_client(campaign_id, client_id)
                         parsed = parse_command(data["command"])
-                        result = await engine.dispatch(parsed, narrate=bool(data.get("narrate")))
+                        result = await state.sessions.require(campaign_id).dispatch(client_id, parsed)
+                        if data.get("narrate"):
+                            result.narration = await engine.gm.narrate(engine.state, result.events)
                         await websocket.send_json(
                             {
                                 "kind": "ack",
