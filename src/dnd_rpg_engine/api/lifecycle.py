@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from dnd_rpg_engine.characters.lifecycle import CharacterBuildRequest
 from dnd_rpg_engine.core.advanced_engine import AdvancedGameEngine
 from dnd_rpg_engine.core.commands import CustomCommand
+from dnd_rpg_engine.core.models import Stats
 
 router = APIRouter(prefix="/api/v1/campaigns", tags=["character-lifecycle"])
 
@@ -32,6 +33,15 @@ class EquipmentRequest(BaseModel):
 class ResourceRequest(BaseModel):
     resource_id: str
     amount: int = Field(default=1, ge=0)
+
+
+class CharacterUpdateRequest(BaseModel):
+    name: str | None = None
+    species_id: str | None = None
+    background_id: str | None = None
+    stats: Stats | None = None
+    tags: set[str] | None = None
+    appearance: dict[str, Any] | None = None
 
 
 async def _require_owner(request: Request, campaign_id: str, client_id: str | None) -> None:
@@ -76,6 +86,42 @@ async def _dispatch(
     }
 
 
+@router.get("/{campaign_id}/characters/catalog")
+async def character_catalog(request: Request, campaign_id: str) -> dict[str, Any]:
+    engine = await _advanced_engine(request, campaign_id)
+    lifecycle = engine.character_lifecycle
+    return {
+        "classes": {key: value.model_dump(mode="json") for key, value in sorted(lifecycle.classes.items())},
+        "equipment": {key: value.model_dump(mode="json") for key, value in sorted(lifecycle.equipment.items())},
+        "rest_profiles": {key: value.model_dump(mode="json") for key, value in sorted(lifecycle.rest_profiles.items())},
+        "advancement": lifecycle.advancement_track.model_dump(mode="json"),
+    }
+
+
+@router.get("/{campaign_id}/characters")
+async def list_characters(request: Request, campaign_id: str) -> list[dict[str, Any]]:
+    engine = await _advanced_engine(request, campaign_id)
+    rows: list[dict[str, Any]] = []
+    for entity in sorted(engine.state.entities.values(), key=lambda value: (value.name.lower(), value.id)):
+        if not entity.components.get("character"):
+            continue
+        progress = engine.character_lifecycle.progress(entity)
+        rows.append({
+            "id": entity.id,
+            "name": entity.name,
+            "owner_id": entity.owner_id,
+            "species_id": progress.species_id,
+            "background_id": progress.background_id,
+            "classes": progress.classes,
+            "total_level": progress.total_level,
+            "xp": progress.xp,
+            "hp": entity.resources.hp,
+            "max_hp": entity.resources.max_hp,
+            "appearance": entity.components.get("appearance", {}),
+        })
+    return rows
+
+
 @router.post("/{campaign_id}/characters")
 async def create_character(
     request: Request,
@@ -93,6 +139,50 @@ async def create_character(
     return {"character": entity.model_dump(mode="json")}
 
 
+@router.patch("/{campaign_id}/characters/{actor_id}")
+async def update_character(
+    request: Request,
+    campaign_id: str,
+    actor_id: str,
+    payload: CharacterUpdateRequest,
+    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+) -> dict[str, Any]:
+    engine = await _advanced_engine(request, campaign_id)
+    await _require_owner(request, campaign_id, client_id)
+    try:
+        entity = engine.state.require_entity(actor_id)
+        progress = engine.character_lifecycle.progress(entity)
+        changed: list[str] = []
+        if payload.name is not None:
+            name = payload.name.strip()
+            if not name:
+                raise ValueError("character name cannot be empty")
+            entity.name = name
+            changed.append("name")
+        if payload.species_id is not None:
+            progress.species_id = payload.species_id or None
+            changed.append("species_id")
+        if payload.background_id is not None:
+            progress.background_id = payload.background_id or None
+            changed.append("background_id")
+        if payload.stats is not None:
+            entity.stats = payload.stats.model_copy(deep=True)
+            changed.append("stats")
+        if payload.tags is not None:
+            entity.tags = {"character", *payload.tags}
+            changed.append("tags")
+        if payload.appearance is not None:
+            entity.components["appearance"] = dict(payload.appearance)
+            changed.append("appearance")
+        engine.character_lifecycle.set_progress(entity, progress)
+        if changed:
+            await engine._emit("character.updated", actor_id=entity.id, payload={"fields": changed})
+            await engine.save()
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await get_character(request, campaign_id, actor_id)
+
+
 @router.get("/{campaign_id}/characters/{actor_id}")
 async def get_character(request: Request, campaign_id: str, actor_id: str) -> dict[str, Any]:
     engine = await _advanced_engine(request, campaign_id)
@@ -104,10 +194,7 @@ async def get_character(request: Request, campaign_id: str, actor_id: str) -> di
     return {
         "entity": entity.model_dump(mode="json"),
         "progress": progress.model_dump(mode="json"),
-        "resources": {
-            key: value.model_dump(mode="json")
-            for key, value in engine.character_lifecycle.resources(entity).items()
-        },
+        "resources": {key: value.model_dump(mode="json") for key, value in engine.character_lifecycle.resources(entity).items()},
         "equipment": engine.character_lifecycle.equipment_state(entity).model_dump(mode="json"),
         "equipment_modifiers": engine.character_lifecycle.effective_equipment_modifiers(entity),
         "level_ready": engine.character_lifecycle.eligible_for_level(entity),
@@ -115,80 +202,38 @@ async def get_character(request: Request, campaign_id: str, actor_id: str) -> di
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/xp")
-async def award_xp(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: XPRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def award_xp(request: Request, campaign_id: str, actor_id: str, payload: XPRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.award_xp", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/level-up")
-async def level_up(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: LevelUpRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def level_up(request: Request, campaign_id: str, actor_id: str, payload: LevelUpRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.level_up", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/rest")
-async def rest(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: RestRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def rest(request: Request, campaign_id: str, actor_id: str, payload: RestRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     return await _dispatch(request, campaign_id, actor_id, "character.rest", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/equip")
-async def equip(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: EquipmentRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def equip(request: Request, campaign_id: str, actor_id: str, payload: EquipmentRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     return await _dispatch(request, campaign_id, actor_id, "character.equip", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/unequip")
-async def unequip(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: EquipmentRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def unequip(request: Request, campaign_id: str, actor_id: str, payload: EquipmentRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     return await _dispatch(request, campaign_id, actor_id, "character.unequip", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/resources/spend")
-async def spend_resource(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: ResourceRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def spend_resource(request: Request, campaign_id: str, actor_id: str, payload: ResourceRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     return await _dispatch(request, campaign_id, actor_id, "character.spend_resource", payload.model_dump(), client_id)
 
 
 @router.post("/{campaign_id}/characters/{actor_id}/resources/restore")
-async def restore_resource(
-    request: Request,
-    campaign_id: str,
-    actor_id: str,
-    payload: ResourceRequest,
-    client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
-) -> dict[str, Any]:
+async def restore_resource(request: Request, campaign_id: str, actor_id: str, payload: ResourceRequest, client_id: str | None = Header(default=None, alias="X-RPG-Client-ID")) -> dict[str, Any]:
     await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.restore_resource", payload.model_dump(), client_id)

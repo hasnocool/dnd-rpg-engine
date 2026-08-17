@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.9.0 - 2026-08-17
+
+### Added
+- Unified Campaign Workbench v3.1-v3.9 covering campaign library, Session Lobby, GM/player operations, tactical play, character lifecycle, visual runtime, Director/knowledge diagnostics, automation observability, analytics/replay, and content/dependency management.
+- Campaign Workbench aggregation API for owner session state, parties, tactical/catalog projections, analytics, knowledge inspection, replay metadata, installed content, and Director decisions.
+- Typed `SceneDefinition` content-pack section with ZIP round trips, validation, runtime registration, and Creator Studio editing.
+- Full Creator Studio coverage for actions, conditions, items, dialogue, NPCs, shops, factions, schedules, dynamic events, personalities, encounters, rules data, assets, and a visual scene-flow graph.
+- Explicit owner Accept/Dismiss workflow for AI Director proposals with bounded pressure metadata updates and persisted decision history.
+- Regression coverage for v3.x browser views, workbench APIs, player knowledge scoping, full-pack Creator editing, and scene-link validation.
+
+### Changed
+- Package version advances to `3.9.0`; the stable HTTP/WebSocket namespace remains `/api/v1`.
+- `WorldPlatformEngine` now exposes bounded Director decision methods while preserving the proposal/advisory authority boundary for concrete gameplay mutations.
+- Creator Studio section typing now covers the complete `ContentPack` schema.
+
 ## 3.0.1 - 2026-08-17
 
 ### Changed
@@ -113,12 +128,9 @@
 ## 1.5.0 - 2026-08-16
 
 ### Added
-- Typed `RulesRuntime` boundary with ruleset capabilities, typed roll/attack/damage contexts and outcomes, explainable modifier traces, effect triggers, reaction opportunities, and per-actor action economy.
-- Deterministic effect pipeline supporting stacked timed effects, flat/multiplicative/min/max modifiers, advantage/disadvantage sources, and trigger-scoped operations.
-- Rules-runtime registry and compatibility routing through `CombatSystem`, allowing rulesets to replace mechanics without changing engine/front-end contracts.
-- SRD 5.2.1 runtime specialization for proficiency, zero-HP transitions, and death-saving throws while retaining the generic engine compatibility path.
-- Deterministic event-sourcing journal with canonical state hashing, SHA-256 hash chaining, replay, rewind, branch creation, command-ID idempotency, and live-state verification.
-- `EventSourcedEngine` compatibility wrapper that can journal the existing `GameEngine` without changing its async command/event interface.
+- Typed `RulesRuntime` boundary with ruleset capabilities, typed roll/attack/damage contexts and outcomes with explainable modifier traces.
+- Deterministic effect pipeline supporting stacked timed effects, flat/multiplicative/min/max modifiers, advantage/disadvantage sources, reaction opportunities, and per-actor action economy.
+- Deterministic event-sourcing journal with canonical state hashing, SHA-256 hash chaining, replay, rewind, branching, command-ID idempotency, and live-state verification.
 - Authoritative spatial subsystem with graph, grid, continuous 2D, and continuous 3D spaces; weighted pathfinding, occupancy/capacity, collision, terrain costs, movement budgets, line-of-sight, and cover queries.
 - Intelligent living-actor subsystem with authoritative perception snapshots, goals, utility scoring, tactical action planning, behavior-tree primitives, schedule-aware intent, and persistent component-backed memories.
 - Regression suites for rules/effects, event sourcing, spatial authority, and intelligent actor planning across the supported Python matrix.

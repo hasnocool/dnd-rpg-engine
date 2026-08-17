@@ -1,3 +1,4 @@
+# src/dnd_rpg_engine/creator/content.py
 from __future__ import annotations
 
 import hashlib
@@ -12,22 +13,46 @@ from pydantic import BaseModel, Field, field_validator
 
 from dnd_rpg_engine.adventure.dialogue import DialogueGraph
 from dnd_rpg_engine.adventure.maps import WorldMap
-from dnd_rpg_engine.adventure.quests import QuestDefinition
 from dnd_rpg_engine.adventure.npcs import NPCProfile
+from dnd_rpg_engine.adventure.quests import QuestDefinition
 from dnd_rpg_engine.adventure.shops import Shop
+from dnd_rpg_engine.ai.encounters import EncounterTemplate
+from dnd_rpg_engine.ai.personalities import Personality
+from dnd_rpg_engine.campaign.orchestrator import SceneDefinition
+from dnd_rpg_engine.core.models import Entity, GameConfig
+from dnd_rpg_engine.core.rules import RuleSet
+from dnd_rpg_engine.living.dynamic_events import DynamicEventDefinition
 from dnd_rpg_engine.living.factions import Faction
 from dnd_rpg_engine.living.schedules import NPCSchedule
-from dnd_rpg_engine.living.dynamic_events import DynamicEventDefinition
-from dnd_rpg_engine.ai.personalities import Personality
-from dnd_rpg_engine.ai.encounters import EncounterTemplate
 from dnd_rpg_engine.tactical.actions import ActionDefinition
 from dnd_rpg_engine.tactical.conditions import ConditionDefinition
 from dnd_rpg_engine.tactical.items import ItemDefinition
 from dnd_rpg_engine.tactical.spells import SpellDefinition
-from dnd_rpg_engine.core.models import Entity, GameConfig
-from dnd_rpg_engine.core.rules import RuleSet
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{1,63}$")
+
+CONTENT_SECTIONS = (
+    "campaigns",
+    "scenes",
+    "creatures",
+    "actions",
+    "conditions",
+    "items",
+    "spells",
+    "maps",
+    "dialogues",
+    "quests",
+    "npcs",
+    "shops",
+    "factions",
+    "schedules",
+    "dynamic_events",
+    "personalities",
+    "encounters",
+    "rules",
+    "rules_data",
+    "assets",
+)
 
 
 def _canonicalize(value: Any) -> Any:
@@ -100,6 +125,7 @@ class RuleDocument(BaseModel):
 class ContentPack(BaseModel):
     manifest: ModManifest
     campaigns: dict[str, CampaignTemplate] = Field(default_factory=dict)
+    scenes: dict[str, SceneDefinition] = Field(default_factory=dict)
     creatures: dict[str, CreatureTemplate] = Field(default_factory=dict)
     actions: dict[str, ActionDefinition] = Field(default_factory=dict)
     conditions: dict[str, ConditionDefinition] = Field(default_factory=dict)
@@ -130,32 +156,12 @@ class ContentPack(BaseModel):
         payload = self.model_dump(mode="json")
         with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("manifest.json", json.dumps(payload["manifest"], indent=2, sort_keys=True))
-            for section in (
-                "campaigns",
-                "creatures",
-                "actions",
-                "conditions",
-                "items",
-                "spells",
-                "maps",
-                "dialogues",
-                "quests",
-                "npcs",
-                "shops",
-                "factions",
-                "schedules",
-                "dynamic_events",
-                "personalities",
-                "encounters",
-                "rules",
-                "rules_data",
-                "assets",
-            ):
+            for section in CONTENT_SECTIONS:
                 archive.writestr(f"content/{section}.json", json.dumps(payload[section], indent=2, sort_keys=True))
         return buffer.getvalue()
 
     @classmethod
-    def from_zip_bytes(cls, data: bytes, *, max_uncompressed_bytes: int = 20_000_000) -> ContentPack:
+    def from_zip_bytes(cls, data: bytes, *, max_uncompressed_bytes: int = 20_000_000) -> "ContentPack":
         with zipfile.ZipFile(io.BytesIO(data), "r") as archive:
             total = sum(info.file_size for info in archive.infolist())
             if total > max_uncompressed_bytes:
@@ -166,27 +172,7 @@ class ContentPack(BaseModel):
                     raise ValueError("unsafe archive path")
             manifest = json.loads(archive.read("manifest.json"))
             payload: dict[str, Any] = {"manifest": manifest}
-            for section in (
-                "campaigns",
-                "creatures",
-                "actions",
-                "conditions",
-                "items",
-                "spells",
-                "maps",
-                "dialogues",
-                "quests",
-                "npcs",
-                "shops",
-                "factions",
-                "schedules",
-                "dynamic_events",
-                "personalities",
-                "encounters",
-                "rules",
-                "rules_data",
-                "assets",
-            ):
+            for section in CONTENT_SECTIONS:
                 path = f"content/{section}.json"
                 payload[section] = json.loads(archive.read(path)) if path in names else {}
             return cls.model_validate(payload)
@@ -200,6 +186,15 @@ class ContentValidator:
                 errors.append(f"campaign {campaign.id} references missing start map {campaign.start_map_id}")
             if campaign.active_rule_id and campaign.active_rule_id not in pack.rules:
                 errors.append(f"campaign {campaign.id} references missing rule {campaign.active_rule_id}")
+        for scene in pack.scenes.values():
+            if scene.map_id and scene.map_id not in pack.maps:
+                errors.append(f"scene {scene.id} references missing map {scene.map_id}")
+            for linked_id in sorted(scene.preload_scene_ids):
+                if linked_id not in pack.scenes:
+                    errors.append(f"scene {scene.id} preloads missing scene {linked_id}")
+            for linked_id in scene.next_scene_ids:
+                if linked_id not in pack.scenes:
+                    errors.append(f"scene {scene.id} links to missing next scene {linked_id}")
         action_ids = set(pack.actions)
         for creature in pack.creatures.values():
             missing = [action_id for action_id in creature.actions if action_id not in action_ids and action_id != "basic_attack"]

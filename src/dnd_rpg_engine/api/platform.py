@@ -1,3 +1,4 @@
+# src/dnd_rpg_engine/api/platform.py
 from __future__ import annotations
 
 import importlib
@@ -12,6 +13,7 @@ from dnd_rpg_engine.api.knowledge_routes import install_knowledge_scoped_routes
 from dnd_rpg_engine.api.lifecycle import router as lifecycle_router
 from dnd_rpg_engine.api.rule_studio import router as rule_studio_router
 from dnd_rpg_engine.api.studio import router as studio_router
+from dnd_rpg_engine.api.workbench import router as workbench_router
 from dnd_rpg_engine.api.world_platform import router as world_platform_router
 from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.world_engine import WorldPlatformEngine
@@ -23,12 +25,7 @@ def create_platform_app(
     *,
     advanced: bool = True,
 ) -> FastAPI:
-    """Build the current platform while preserving all existing /api/v1 routes.
-
-    The compatibility app remains available through ``advanced=False``. The
-    default advanced profile uses ``WorldPlatformEngine`` so v1.2-v3.0 services
-    share the same authoritative campaign state and command/event contracts.
-    """
+    """Build the complete platform while preserving all existing /api/v1 routes."""
 
     legacy = importlib.import_module("dnd_rpg_engine.api.app")
     engine_class: Type[GameEngine] = WorldPlatformEngine if advanced else GameEngine
@@ -40,7 +37,7 @@ def create_platform_app(
     app.description = (
         "Authoritative deterministic RPG platform with executable content, "
         "campaign orchestration, knowledge-scoped runtime sync, production "
-        "hosting, content distribution, reconnect/resume, and Creator Studio."
+        "hosting, content distribution, persistent worlds, and the v3.x Campaign Workbench."
     )
 
     app.router.routes[:] = [
@@ -67,6 +64,7 @@ def create_platform_app(
     app.include_router(rule_studio_router)
     app.include_router(distribution_router)
     app.include_router(world_platform_router)
+    app.include_router(workbench_router)
     if advanced:
         install_knowledge_scoped_routes(app)
     return app

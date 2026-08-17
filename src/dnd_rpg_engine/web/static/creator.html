@@ -7,137 +7,66 @@
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="stylesheet" href="/static/creator-studio.css" />
   <link rel="stylesheet" href="/static/rule-graph.css" />
+  <link rel="stylesheet" href="/static/creator-v39.css" />
 </head>
 <body class="studio-body">
   <header class="studio-header">
-    <div>
-      <h1>Creator Studio</h1>
-      <p>Visual campaigns, maps, creatures, executable rules, spells, and quests</p>
-    </div>
-    <div class="studio-header-actions">
-      <span id="save-state" class="studio-pill">Not saved</span>
-      <span id="revision-state" class="studio-pill">Revision 0</span>
-      <button id="validate-project">Validate</button>
-      <button id="export-project">Export</button>
-      <button id="publish-project" class="primary">Publish</button>
-      <nav><a href="/">Play</a><a href="/docs">API</a></nav>
-    </div>
+    <div><h1>Creator Studio</h1><p>Visual campaigns, maps, scenes, actors, executable rules, world systems, and distributable content</p></div>
+    <div class="studio-header-actions"><span id="save-state" class="studio-pill">Not saved</span><span id="revision-state" class="studio-pill">Revision 0</span><button id="validate-project">Validate</button><button id="export-project">Export</button><button id="publish-project" class="primary">Publish</button><nav><a href="/">Play</a><a href="/docs">API</a></nav></div>
   </header>
 
   <main class="studio-shell">
     <aside class="studio-sidebar">
       <section class="studio-panel">
-        <div class="studio-panel-title">
-          <h2>Project</h2>
-          <button id="new-project" title="New project">+</button>
-        </div>
-        <label>Name <input id="project-name" value="Example Adventure" /></label>
-        <label>Pack ID <input id="pack-id" value="example.adventure" /></label>
-        <div class="studio-grid-2">
-          <label>Version <input id="pack-version" value="1.0.0" /></label>
-          <label>License <input id="pack-license" value="CC0-1.0" /></label>
-        </div>
-        <label>Author <input id="pack-author" value="creator" /></label>
-        <button id="save-manifest">Save metadata</button>
+        <div class="studio-panel-title"><h2>Project</h2><button id="new-project" title="New project">+</button></div>
+        <label>Name <input id="project-name" value="Example Adventure" /></label><label>Pack ID <input id="pack-id" value="example.adventure" /></label>
+        <div class="studio-grid-2"><label>Version <input id="pack-version" value="1.0.0" /></label><label>License <input id="pack-license" value="CC0-1.0" /></label></div>
+        <label>Author <input id="pack-author" value="creator" /></label><button id="save-manifest">Save metadata</button>
       </section>
 
       <section class="studio-panel studio-library">
-        <h2>Content</h2>
-        <div id="section-tabs" class="studio-section-tabs" role="tablist">
-          <button data-section="maps" class="active">Maps</button>
-          <button data-section="creatures">Creatures</button>
-          <button data-section="rules">Rules</button>
-          <button data-section="spells">Spells</button>
-          <button data-section="quests">Quests</button>
-          <button data-section="campaigns">Campaigns</button>
-        </div>
-        <div class="studio-library-toolbar">
-          <input id="library-filter" placeholder="Filter…" />
-          <button id="add-object">New</button>
-        </div>
-        <div id="object-list" class="studio-object-list"></div>
+        <h2>Core editors</h2>
+        <div id="section-tabs" class="studio-section-tabs" role="tablist"><button data-section="maps" class="active">Maps</button><button data-section="creatures">Creatures</button><button data-section="rules">Rules</button><button data-section="spells">Spells</button><button data-section="quests">Quests</button><button data-section="campaigns">Campaigns</button></div>
+        <div class="studio-library-toolbar"><input id="library-filter" placeholder="Filter…" /><button id="add-object">New</button></div><div id="object-list" class="studio-object-list"></div>
       </section>
 
-      <section class="studio-panel">
-        <div class="studio-panel-title">
-          <h2>History</h2>
-          <button id="refresh-history" title="Refresh">↻</button>
+      <section class="studio-panel studio-library">
+        <div class="studio-panel-title"><h2>Full pack · v3.3</h2><span class="studio-pill">all sections</span></div>
+        <p class="studio-summary">Use these editors for the remaining ContentPack types. Scenes include a live flow graph.</p>
+        <div id="v39-section-tabs" class="v39-section-tabs">
+          <button data-v39-section="scenes">Scenes</button><button data-v39-section="actions">Actions</button><button data-v39-section="conditions">Conditions</button><button data-v39-section="items">Items</button><button data-v39-section="dialogues">Dialogue</button><button data-v39-section="npcs">NPCs</button><button data-v39-section="shops">Shops</button><button data-v39-section="factions">Factions</button><button data-v39-section="schedules">Schedules</button><button data-v39-section="dynamic_events">World events</button><button data-v39-section="personalities">Personalities</button><button data-v39-section="encounters">Encounters</button><button data-v39-section="rules_data">Rules data</button><button data-v39-section="assets">Assets</button>
         </div>
-        <label>Revision <input id="restore-revision" type="number" min="0" value="0" /></label>
-        <button id="restore-project">Restore revision</button>
       </section>
+
+      <section class="studio-panel"><div class="studio-panel-title"><h2>History</h2><button id="refresh-history" title="Refresh">↻</button></div><label>Revision <input id="restore-revision" type="number" min="0" value="0" /></label><button id="restore-project">Restore revision</button></section>
     </aside>
 
     <section class="studio-workspace">
-      <div class="studio-workspace-title">
-        <div>
-          <span id="workspace-kicker" class="studio-kicker">MAP EDITOR</span>
-          <h2 id="workspace-title">Select or create a map</h2>
+      <div class="studio-workspace-title"><div><span id="workspace-kicker" class="studio-kicker">MAP EDITOR</span><h2 id="workspace-title">Select or create a map</h2></div><div id="workspace-actions" class="studio-toolbar"></div></div>
+
+      <div id="map-workspace" class="studio-map-workspace"><div class="studio-map-tools"><button id="map-add-node">Add node</button><button id="map-connect">Connect selected</button><button id="map-fit">Fit</button><span class="studio-help">Drag nodes to lay out the world graph. Shift-click selects two nodes.</span></div><svg id="map-canvas" viewBox="0 0 1200 720" aria-label="World map editor"><defs><marker id="edge-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" /></marker></defs><g id="map-edges"></g><g id="map-nodes"></g></svg></div>
+      <div id="form-workspace" class="studio-form-workspace hidden"><form id="object-form" class="studio-object-form"></form></div>
+
+      <div id="v39-workspace" class="v39-workspace hidden">
+        <div class="v39-toolbar"><div><span id="v39-kicker" class="studio-kicker">EXTENDED CONTENT</span><h3 id="v39-title">Scenes</h3></div><div class="studio-toolbar"><button id="v39-new">New</button><button id="v39-delete" class="danger">Delete</button><button id="v39-refresh">Refresh</button></div></div>
+        <div class="v39-editor-grid">
+          <aside><label>Filter <input id="v39-filter" placeholder="Filter objects…" /></label><div id="v39-list" class="studio-object-list"></div></aside>
+          <section><div id="v39-scene-graph" class="v39-scene-graph hidden"><div class="studio-panel-title"><h3>Scene flow</h3><span class="studio-summary">Edges come from <code>next_scene_ids</code>.</span></div><svg id="v39-scene-svg" viewBox="0 0 1200 620" aria-label="Scene flow graph"><defs><marker id="scene-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" /></marker></defs><g id="v39-scene-edges"></g><g id="v39-scene-nodes"></g></svg></div><label>Object JSON<textarea id="v39-json" rows="26" spellcheck="false"></textarea></label><div class="studio-toolbar"><button id="v39-format">Format JSON</button><button id="v39-save" class="primary">Save object</button></div><pre id="v39-output" class="mono studio-log">Choose an extended content type.</pre></section>
         </div>
-        <div id="workspace-actions" class="studio-toolbar"></div>
       </div>
-
-      <div id="map-workspace" class="studio-map-workspace">
-        <div class="studio-map-tools">
-          <button id="map-add-node">Add node</button>
-          <button id="map-connect">Connect selected</button>
-          <button id="map-fit">Fit</button>
-          <span class="studio-help">Drag nodes to lay out the world graph. Shift-click selects two nodes.</span>
-        </div>
-        <svg id="map-canvas" viewBox="0 0 1200 720" aria-label="World map editor">
-          <defs>
-            <marker id="edge-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-              <path d="M0,0 L0,6 L9,3 z" />
-            </marker>
-          </defs>
-          <g id="map-edges"></g>
-          <g id="map-nodes"></g>
-        </svg>
-      </div>
-
-      <div id="form-workspace" class="studio-form-workspace hidden">
-        <form id="object-form" class="studio-object-form"></form>
-      </div>
-
       <div id="validation-banner" class="studio-validation hidden"></div>
     </section>
 
     <aside class="studio-inspector">
-      <section id="map-inspector" class="studio-panel">
-        <h2>Map inspector</h2>
-        <div id="map-summary" class="studio-summary">No map selected.</div>
-        <div id="node-inspector" class="hidden">
-          <h3>Selected node</h3>
-          <label>ID <input id="node-id" disabled /></label>
-          <label>Name <input id="node-name" /></label>
-          <label>Description <textarea id="node-description" rows="4"></textarea></label>
-          <div class="studio-grid-3">
-            <label>X <input id="node-x" type="number" step="1" /></label>
-            <label>Y <input id="node-y" type="number" step="1" /></label>
-            <label>Z <input id="node-z" type="number" step="1" /></label>
-          </div>
-          <label>Tags <input id="node-tags" placeholder="town, safe, shop" /></label>
-          <button id="save-node">Save node</button>
-        </div>
-        <div id="edge-inspector" class="hidden">
-          <h3>Connect nodes</h3>
-          <div id="edge-selection" class="studio-summary"></div>
-          <label>Travel time <input id="edge-travel-time" type="number" min="0.01" step="0.25" value="1" /></label>
-          <label class="studio-check"><input id="edge-bidirectional" type="checkbox" checked /> Bidirectional</label>
-          <button id="create-edge">Create edge</button>
-        </div>
-      </section>
-
-      <section class="studio-panel">
-        <h2>Pack health</h2>
-        <div id="content-counts" class="studio-metrics"></div>
-        <pre id="validation-output" class="mono studio-log">Create a project to begin.</pre>
-      </section>
+      <section id="map-inspector" class="studio-panel"><h2>Map inspector</h2><div id="map-summary" class="studio-summary">No map selected.</div><div id="node-inspector" class="hidden"><h3>Selected node</h3><label>ID <input id="node-id" disabled /></label><label>Name <input id="node-name" /></label><label>Description <textarea id="node-description" rows="4"></textarea></label><div class="studio-grid-3"><label>X <input id="node-x" type="number" step="1" /></label><label>Y <input id="node-y" type="number" step="1" /></label><label>Z <input id="node-z" type="number" step="1" /></label></div><label>Tags <input id="node-tags" placeholder="town, safe, shop" /></label><button id="save-node">Save node</button></div><div id="edge-inspector" class="hidden"><h3>Connect nodes</h3><div id="edge-selection" class="studio-summary"></div><label>Travel time <input id="edge-travel-time" type="number" min="0.01" step="0.25" value="1" /></label><label class="studio-check"><input id="edge-bidirectional" type="checkbox" checked /> Bidirectional</label><button id="create-edge">Create edge</button></div></section>
+      <section class="studio-panel"><h2>Pack health</h2><div id="content-counts" class="studio-metrics"></div><pre id="validation-output" class="mono studio-log">Create a project to begin.</pre></section>
+      <section class="studio-panel"><h2>Creator flow</h2><div class="studio-summary">Campaign → maps → scenes → actors → adventure content → world systems → rules → validate → simulate → publish.</div><a class="v39-workbench-link" href="/">Open Campaign Workbench</a></section>
     </aside>
   </main>
 
   <input id="import-file" type="file" accept="application/json" hidden />
   <script type="module" src="/static/creator.js"></script>
   <script type="module" src="/static/rule-graph.js"></script>
+  <script type="module" src="/static/creator-v39.js"></script>
 </body>
 </html>

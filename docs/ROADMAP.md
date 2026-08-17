@@ -251,3 +251,78 @@
 - [x] compatibility with production worker/campaign lease infrastructure from v1.7
 
 The v3.0 milestone establishes the deterministic persistence, routing, handoff, and authority primitives required to scale into multiple simulation processes. Production deployments can layer transport/service-discovery infrastructure around these interfaces without changing campaign, rules, or client contracts.
+
+## v3.1 Unified Campaign Workbench — complete
+- [x] campaign library/launcher
+- [x] separate GM and knowledge-scoped player surfaces
+- [x] world-state and persisted event-history views
+- [x] scene lifecycle controls
+- [x] AI Director inspection
+- [x] live WebSocket event integration without client-side authority
+
+## v3.2 Session Operations + Tactical Play — complete
+- [x] dedicated tactical encounter workspace
+- [x] authoritative actor/target selection and action palette
+- [x] movement commands validated by SpatialAuthority
+- [x] action/spell/item/executable-rule catalog
+- [x] encounter start/end owner controls
+- [x] action-economy/spatial summary
+- [x] character lifecycle sheet, rests, equipment, resources, XP, and level-up controls
+
+## v3.3 Full Creator Workbench — complete
+- [x] typed `SceneDefinition` ContentPack section
+- [x] scene ZIP/hash/validation/runtime-install integration
+- [x] scene-flow graph based on `next_scene_ids`
+- [x] Creator Studio coverage for actions/conditions/items/dialogue/NPCs/shops/factions/schedules/events/personalities/encounters
+- [x] Creator Studio coverage for rules data and assets
+- [x] existing visual maps/rules/campaign editors retained
+- [x] revision/validation/export/publish flow retained across all sections
+
+## v3.4 Advanced GM Intelligence — complete
+- [x] dedicated AI Director proposal dashboard
+- [x] proposal utility/reasons/payload display
+- [x] owner Accept/Dismiss decision workflow
+- [x] bounded pressure-metadata application preserving proposal authority boundary
+- [x] persisted Director decision history
+- [x] GM knowledge-authority matrix and fact/observation inspection
+
+## v3.5 Replay + Campaign Analytics — complete
+- [x] persisted event aggregation and type/actor/target counts
+- [x] numeric event totals and entity-health summary
+- [x] rules-event inspection for explainability
+- [x] event timeline scrubber
+- [x] persisted EventSourcedEngine journal discovery
+- [x] branch/rewind capability advertised only when event-source journal data exists
+
+## v3.6 Visual World Runtime — complete
+- [x] canonical owner RuntimeSnapshot inspector
+- [x] actor-scoped redacted RuntimeSnapshot inspector
+- [x] snapshot sequence/hash/facts/bindings display
+- [x] position-based browser renderer shared with tactical view
+- [x] presentation-only grid/label controls
+- [x] server remains authoritative for movement/visibility/rules
+
+## v3.7 Campaign Automation — complete
+- [x] installed NPC schedule observability
+- [x] installed dynamic-event observability
+- [x] simulation/world clock context
+- [x] active-scene context
+- [x] authoring remains in typed Creator Studio
+- [x] trigger evaluation remains server-side living-world behavior
+
+## v3.8 Multiplayer Experience — complete
+- [x] session lobby
+- [x] connected client/role/ownership visibility
+- [x] party creation
+- [x] party actor/user membership operations
+- [x] scene readiness/session state display
+- [x] existing sanitized player ownership and reconnect/resume boundaries retained
+
+## v3.9 Content Ecosystem — complete
+- [x] installed content-pack inventory and section summaries
+- [x] dependency manifest visibility
+- [x] distribution release browser
+- [x] dependency-lock inspection
+- [x] interactive distribution resolver
+- [x] Creator publication remains the package/release source
+- [x] package/API/browser version aligned at 3.9.0

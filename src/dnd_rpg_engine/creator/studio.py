@@ -8,8 +8,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from dnd_rpg_engine.adventure.dialogue import DialogueGraph
 from dnd_rpg_engine.adventure.maps import AreaEdge, AreaNode, WorldMap
+from dnd_rpg_engine.adventure.npcs import NPCProfile
 from dnd_rpg_engine.adventure.quests import QuestDefinition
+from dnd_rpg_engine.adventure.shops import Shop
+from dnd_rpg_engine.ai.encounters import EncounterTemplate
+from dnd_rpg_engine.ai.personalities import Personality
+from dnd_rpg_engine.campaign.orchestrator import SceneDefinition
 from dnd_rpg_engine.creator.content import (
     CampaignTemplate,
     ContentPack,
@@ -18,6 +24,12 @@ from dnd_rpg_engine.creator.content import (
     ModManifest,
     RuleDocument,
 )
+from dnd_rpg_engine.living.dynamic_events import DynamicEventDefinition
+from dnd_rpg_engine.living.factions import Faction
+from dnd_rpg_engine.living.schedules import NPCSchedule
+from dnd_rpg_engine.tactical.actions import ActionDefinition
+from dnd_rpg_engine.tactical.conditions import ConditionDefinition
+from dnd_rpg_engine.tactical.items import ItemDefinition
 from dnd_rpg_engine.tactical.spells import SpellDefinition
 
 
@@ -28,20 +40,46 @@ class JsonStore(Protocol):
 
 class StudioSection(StrEnum):
     CAMPAIGNS = "campaigns"
-    CREATURES = "creatures"
+    SCENES = "scenes"
     MAPS = "maps"
-    RULES = "rules"
+    CREATURES = "creatures"
+    NPCS = "npcs"
+    PERSONALITIES = "personalities"
+    ENCOUNTERS = "encounters"
+    ACTIONS = "actions"
+    CONDITIONS = "conditions"
+    ITEMS = "items"
     SPELLS = "spells"
+    DIALOGUES = "dialogues"
     QUESTS = "quests"
+    SHOPS = "shops"
+    FACTIONS = "factions"
+    SCHEDULES = "schedules"
+    DYNAMIC_EVENTS = "dynamic_events"
+    RULES = "rules"
+    RULES_DATA = "rules_data"
+    ASSETS = "assets"
 
 
 _SECTION_MODELS: dict[StudioSection, type[BaseModel]] = {
     StudioSection.CAMPAIGNS: CampaignTemplate,
-    StudioSection.CREATURES: CreatureTemplate,
+    StudioSection.SCENES: SceneDefinition,
     StudioSection.MAPS: WorldMap,
-    StudioSection.RULES: RuleDocument,
+    StudioSection.CREATURES: CreatureTemplate,
+    StudioSection.NPCS: NPCProfile,
+    StudioSection.PERSONALITIES: Personality,
+    StudioSection.ENCOUNTERS: EncounterTemplate,
+    StudioSection.ACTIONS: ActionDefinition,
+    StudioSection.CONDITIONS: ConditionDefinition,
+    StudioSection.ITEMS: ItemDefinition,
     StudioSection.SPELLS: SpellDefinition,
+    StudioSection.DIALOGUES: DialogueGraph,
     StudioSection.QUESTS: QuestDefinition,
+    StudioSection.SHOPS: Shop,
+    StudioSection.FACTIONS: Faction,
+    StudioSection.SCHEDULES: NPCSchedule,
+    StudioSection.DYNAMIC_EVENTS: DynamicEventDefinition,
+    StudioSection.RULES: RuleDocument,
 }
 
 
@@ -62,7 +100,7 @@ class StudioValidation(BaseModel):
 
 
 class CreatorStudio:
-    """Persistent typed editing service for the browser Creator Studio."""
+    """Persistent typed editing service for every ContentPack authoring section."""
 
     project_namespace = "studio.project"
     revision_namespace = "studio.revision"
@@ -108,10 +146,20 @@ class CreatorStudio:
     ) -> StudioProject:
         project = await self.get_project(project_id)
         parsed_section = StudioSection(section)
-        model = _SECTION_MODELS[parsed_section]
-        normalized = {**payload, "id": object_id}
-        value = model.model_validate(normalized)
         section_map = getattr(project.pack, parsed_section.value)
+        if parsed_section is StudioSection.ASSETS:
+            value = payload.get("value", payload.get("path", payload.get("uri")))
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("asset payload requires non-empty value/path/uri")
+            section_map[object_id] = value
+            return await self._commit(project)
+        if parsed_section is StudioSection.RULES_DATA:
+            section_map[object_id] = payload
+            return await self._commit(project)
+        model = _SECTION_MODELS[parsed_section]
+        id_field = "entity_id" if parsed_section is StudioSection.NPCS else "id"
+        normalized = {**payload, id_field: object_id}
+        value = model.model_validate(normalized)
         section_map[object_id] = value
         return await self._commit(project)
 
