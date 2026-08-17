@@ -77,9 +77,16 @@ class DirectorProvider(Protocol):
 
 
 class CampaignDirector:
-    """Persistent campaign-level planner that proposes, but never mutates, truth."""
+    """Persistent campaign planner that proposes, but never mutates, game truth.
+
+    Director state and its bounded proposal ledger live in campaign metadata so
+    reconnects/worker moves retain long-running story intent. Approval returns
+    a normal ``GameCommand``; callers must still send that command through the
+    authoritative campaign session/rules path.
+    """
 
     metadata_key = "campaign_director"
+    proposals_key = "campaign_director_proposals"
 
     def __init__(self) -> None:
         self.proposals: dict[str, DirectorProposal] = {}
@@ -92,6 +99,30 @@ class CampaignDirector:
 
     def save_state(self, campaign: CampaignState, state: DirectorState) -> None:
         campaign.metadata[self.metadata_key] = state.model_dump(mode="json")
+
+    def hydrate(self, campaign: CampaignState) -> dict[str, DirectorProposal]:
+        raw = campaign.metadata.get(self.proposals_key, {})
+        if isinstance(raw, dict):
+            for proposal_id, payload in raw.items():
+                self.proposals[str(proposal_id)] = DirectorProposal.model_validate(payload)
+        return self.proposals
+
+    def _save_proposals(self, campaign: CampaignState) -> None:
+        # Keep a bounded deterministic history so long campaigns do not grow
+        # metadata without limit.
+        values = sorted(self.proposals.values(), key=lambda value: (value.sequence, value.id))[-256:]
+        self.proposals = {value.id: value for value in values}
+        campaign.metadata[self.proposals_key] = {
+            value.id: value.model_dump(mode="json") for value in values
+        }
+
+    def proposal(self, proposal_id: str, *, campaign: CampaignState | None = None) -> DirectorProposal:
+        if proposal_id not in self.proposals and campaign is not None:
+            self.hydrate(campaign)
+        try:
+            return self.proposals[proposal_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown director proposal: {proposal_id}") from exc
 
     def add_thread(self, campaign: CampaignState, thread: StoryThread) -> StoryThread:
         state = self.state_for(campaign)
@@ -119,13 +150,17 @@ class CampaignDirector:
                 key = str(faction_id)
                 state.faction_pressure[key] = min(1.0, state.faction_pressure.get(key, 0.0) + 0.08)
             for thread in state.threads.values():
-                if thread.status in {StoryThreadStatus.OPEN, StoryThreadStatus.ACTIVE} and thread.tags & set(event.type.split(".")):
+                if (
+                    thread.status in {StoryThreadStatus.OPEN, StoryThreadStatus.ACTIVE}
+                    and thread.tags & set(event.type.split("."))
+                ):
                     thread.status = StoryThreadStatus.ACTIVE
                     thread.last_advanced_at = campaign.simulation_time
         self.save_state(campaign, state)
         return state
 
     def propose(self, campaign: CampaignState, *, limit: int = 3) -> list[DirectorProposal]:
+        self.hydrate(campaign)
         state = self.state_for(campaign)
         candidates: list[tuple[float, DirectorProposal]] = []
         repetition = self._repetition(state.recent_scene_tags)
@@ -135,7 +170,10 @@ class CampaignDirector:
         active_threads.sort(key=lambda value: (-value.weight, value.last_advanced_at, value.id))
         if active_threads:
             thread = active_threads[0]
-            urgency = min(1.0, 0.45 + thread.weight * 0.05 + min(0.3, campaign.simulation_time - thread.last_advanced_at) / 1000)
+            urgency = min(
+                1.0,
+                0.45 + thread.weight * 0.05 + min(0.3, max(0.0, campaign.simulation_time - thread.last_advanced_at) / 1000),
+            )
             candidates.append(
                 (
                     urgency,
@@ -211,27 +249,39 @@ class CampaignDirector:
         for proposal in selected:
             self.proposals[proposal.id] = proposal
         self.save_state(campaign, state)
+        self._save_proposals(campaign)
         return selected
 
-    def attach_command(self, proposal_id: str, command: dict[str, Any]) -> DirectorProposal:
-        proposal = self.proposals[proposal_id]
-        # Parse now so providers/GM tools cannot attach malformed commands.
+    def attach_command(
+        self,
+        proposal_id: str,
+        command: dict[str, Any],
+        *,
+        campaign: CampaignState | None = None,
+    ) -> DirectorProposal:
+        proposal = self.proposal(proposal_id, campaign=campaign)
         parsed = parse_command(command)
         proposal.suggested_command = parsed.model_dump(mode="json")
+        if campaign is not None:
+            self._save_proposals(campaign)
         return proposal
 
-    def approve(self, proposal_id: str) -> GameCommand | None:
-        proposal = self.proposals[proposal_id]
+    def approve(self, proposal_id: str, *, campaign: CampaignState | None = None) -> GameCommand | None:
+        proposal = self.proposal(proposal_id, campaign=campaign)
         if proposal.rejected:
             raise ValueError("rejected proposal cannot be approved")
         proposal.approved = True
+        if campaign is not None:
+            self._save_proposals(campaign)
         return parse_command(proposal.suggested_command) if proposal.suggested_command else None
 
-    def reject(self, proposal_id: str) -> DirectorProposal:
-        proposal = self.proposals[proposal_id]
+    def reject(self, proposal_id: str, *, campaign: CampaignState | None = None) -> DirectorProposal:
+        proposal = self.proposal(proposal_id, campaign=campaign)
         if proposal.approved:
             raise ValueError("approved proposal cannot be rejected")
         proposal.rejected = True
+        if campaign is not None:
+            self._save_proposals(campaign)
         return proposal
 
     def provider_context(self, campaign: CampaignState) -> dict[str, Any]:
