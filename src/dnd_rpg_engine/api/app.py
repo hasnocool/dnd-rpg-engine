@@ -470,6 +470,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3", srd_catalog_path: str 
     async def creator() -> FileResponse:
         return FileResponse(static_dir / "creator.html")
 
+    @app.get("/hero", tags=["workbench"], include_in_schema=False)
+    async def hero_workshop() -> FileResponse:
+        return FileResponse(static_dir / "hero.html")
+
     return app
 
 
