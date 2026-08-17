@@ -1,5 +1,68 @@
 # Changelog
 
+## 3.0.0 - 2026-08-16
+
+### Added
+- `WorldPlatformEngine`, the integrated v1.9-v3.0 profile layered over `AdvancedGameEngine` without removing the compatibility-first engine surfaces.
+- Persistent world-shard directory with capacity/load/heartbeat state, explicit region affinity, stable SHA-256 rendezvous routing, expiration, and rebalance plans.
+- Two-phase cross-shard entity transfers with canonical state hashes, prepare/accept/commit/abort states, payload verification, and exactly-once commit guards.
+- Lamport-ordered cross-shard messages with idempotency keys.
+- `PersistentWorldRegistry` for shard, region-assignment, transfer, and message metadata over the existing SQLite/PostgreSQL JSON-store contract.
+
+### Changed
+- Package version advances to `3.0.0`; `/api/v1` remains the stable HTTP/WebSocket namespace.
+- The default advanced platform server now boots `WorldPlatformEngine` while reporting the established `engine_profile=advanced` compatibility value plus `platform_profile=world`.
+- World-profile campaign reads, event history, and WebSockets are knowledge-scoped so non-owner clients do not receive omniscient state.
+
+## 2.5.0 - 2026-08-16
+
+### Added
+- Deterministic content distribution index with semantic-version requirements, dependency resolution, engine compatibility, cycle detection, topological install order, update planning, content hashes, and dependency lock hashes.
+- Package signature metadata and built-in HMAC-SHA256 signer suitable for private registries and deterministic tests.
+- Persistent release/lock service using the common JSON-store contract.
+- Distribution REST endpoints plus Creator Studio publish-to-marketplace-and-distribution flow.
+
+## 2.4.0 - 2026-08-16
+
+### Added
+- Transport-neutral visual runtime SDK with canonical state snapshots, redacted KnowledgeView snapshots, visual bindings, client cursors, and hash-verified add/replace/remove deltas.
+- Deterministic delta apply/verification suitable for browser, Godot, and remote clients.
+
+## 2.3.0 - 2026-08-16
+
+### Added
+- Per-actor Knowledge Authority with known entities, observation timestamps, remembered entity snapshots, facts, confidence, sources, tags, and expiry.
+- Perception ingestion into persistent entity components.
+- Public-component filtering for non-self observations and stale-snapshot semantics preventing hidden live state from leaking after line of sight is lost.
+- Knowledge-scoped campaign GET/event/WebSocket routes for the v3 world profile.
+
+## 2.2.0 - 2026-08-16
+
+### Added
+- Campaign-scale AI Director producing deterministic, explainable pacing, encounter, quest, faction, world-event, and downtime proposals.
+- Pressure/resource-aware recovery and decompression suggestions while preserving a proposal-only authority boundary.
+
+## 2.1.0 - 2026-08-16
+
+### Added
+- Deterministic Simulation Lab with seed matrices, bounded async concurrency, outcome/event capture, statistical summaries, percentile metrics, and report comparisons.
+
+## 2.0.0 - 2026-08-16
+
+### Added
+- Authoritative Campaign Orchestrator with typed scenes, validated lifecycle transitions, exclusive activation, persisted scene runtime state, next-scene candidates, and active/preload entity streaming sets.
+- Scene registration and transition APIs.
+
+## 1.9.0 - 2026-08-16
+
+### Added
+- Bounded declarative `RuleCompiler`, `ExecutableRuleGraph`, and `RuleExecutor` connected directly to the typed `RulesRuntime`.
+- Canonical graph hashes, source provenance, deterministic execution budgets, and node-by-node execution traces.
+- Allowlisted roll, damage, healing, resource, state, effect, reaction, flow, emit, and stop operations with no arbitrary script execution.
+- `RuleDocument.graph` support through Creator Studio, content-pack hashing, and ZIP import/export.
+- Authoritative `rule.execute` command support in `WorldPlatformEngine`.
+- Visual Creator Studio rule graph editor and compiler validation endpoint.
+
 ## 1.8.0 - 2026-08-16
 
 ### Added
