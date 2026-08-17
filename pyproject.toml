@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dnd-rpg-engine"
-version = "1.5.0"
+version = "1.8.0"
 description = "Headless deterministic fantasy RPG simulation engine for turn-based, timed, hybrid, real-time, web, TUI, 2D, and 3D games."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,16 +21,23 @@ dependencies = [
 [project.optional-dependencies]
 tui = ["textual>=8.2.8,<9"]
 srd = ["pypdf>=5.9,<7"]
+hosting = ["asyncpg>=0.30,<1"]
 dev = [
   "pytest>=9.1.1,<10",
   "pytest-asyncio>=1.2.0,<2",
   "pytest-cov>=6,<8",
 ]
-all = ["textual>=8.2.8,<9", "pypdf>=5.9,<7"]
+all = [
+  "textual>=8.2.8,<9",
+  "pypdf>=5.9,<7",
+  "asyncpg>=0.30,<1",
+]
 
 [project.scripts]
 rpg-engine = "dnd_rpg_engine.cli:app"
 rpg-engine-tui = "dnd_rpg_engine.tui:main"
+rpg-engine-host = "dnd_rpg_engine.hosting.server:main"
+rpg-engine-worker = "dnd_rpg_engine.hosting.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dnd_rpg_engine"]
