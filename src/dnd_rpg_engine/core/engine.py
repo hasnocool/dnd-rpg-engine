@@ -22,14 +22,22 @@ from dnd_rpg_engine.core.commands import (
     AttackCommand,
     CastCommand,
     CustomCommand,
+    EndTurnCommand,
     DialogueCommand,
     GameCommand,
     InteractCommand,
     MoveCommand,
+    PrepareSpellsCommand,
+    ReactionCommand,
+    RestCommand,
     ShopCommand,
+    TravelCommand,
     UseItemCommand,
     WaitCommand,
 )
+from dnd_rpg_engine.characters.runtime import CharacterRuntime
+from dnd_rpg_engine.campaign.runner import CampaignRunner
+from dnd_rpg_engine.ai.director import CampaignDirector
 from dnd_rpg_engine.core.dice import DeterministicDice
 from dnd_rpg_engine.core.events import EventBus, GameEvent
 from dnd_rpg_engine.core.models import (
@@ -108,6 +116,10 @@ class GameEngine:
         self.quest_journals: dict[str, QuestJournal] = {}
         self.world = LivingWorld(self.dice, state.world_minutes)
         self.gm = game_master or GameMaster()
+        self.characters = CharacterRuntime(self)
+        self.campaign_runner = CampaignRunner(self)
+        self.director = CampaignDirector(self)
+        self._reaction_windows: dict[str, dict[str, object]] = dict(runtime.get("reaction_windows", {}))
         self._lock = asyncio.Lock()
         self._ready_humans: set[str] = set(runtime.get("ready_humans", []))
         self._decision_pause_remaining: float | None = runtime.get("decision_pause_remaining")
@@ -282,16 +294,22 @@ class GameEngine:
                 if self._has_readiness_task(command.actor_id):
                     raise ValueError("actor is not ready")
 
+            self.characters.validate_command(actor, command)
+            old_position = actor.position.model_copy(deep=True)
             start_index = len(self._recent_events)
             action_time = await self._execute_command(command)
-            if actor.controller is ControllerKind.HUMAN:
+            keep_ready = self.characters.apply_command(actor, command, old_position=old_position)
+            if actor.controller is ControllerKind.HUMAN and not keep_ready:
                 self._ready_humans.discard(actor.id)
                 if not self._ready_humans:
                     self._decision_pause_remaining = None
-            self._schedule_actor_ready(actor.id, delay=action_time)
+            if not keep_ready:
+                self._schedule_actor_ready(actor.id, delay=action_time)
+            else:
+                await self._emit("timeline.turn_resources_updated", actor_id=actor.id, payload=self.characters.available_actions(actor))
             self.version += 1
 
-            if self.config.time_mode is TimeMode.TURN_BASED:
+            if self.config.time_mode is TimeMode.TURN_BASED and not keep_ready:
                 await self._advance_turn_based_until_human()
 
             await self._persist_state()
@@ -318,7 +336,17 @@ class GameEngine:
                 remaining -= consumed
                 if self._decision_pause_remaining <= 0:
                     self._decision_pause_remaining = None
-                    await self._emit("timeline.decision_window_expired", payload={"ready_actors": sorted(self._ready_humans)})
+                    expired = sorted(self._ready_humans)
+                    await self._emit("timeline.decision_window_expired", payload={"ready_actors": expired})
+                    for actor_id in expired:
+                        ready_actor = self.state.entities.get(actor_id)
+                        if ready_actor is not None and self.characters.has_character(ready_actor):
+                            char_state = self.characters.state(ready_actor)
+                            char_state.turn.active = False
+                            self.characters.save(ready_actor, char_state)
+                            self._ready_humans.discard(actor_id)
+                            self._schedule_actor_ready(actor_id, delay=self.rules.round_seconds)
+                            await self._emit("timeline.turn_auto_ended", actor_id=actor_id)
                     await self._emit("timeline.resumed")
 
             if remaining > 0:
@@ -356,6 +384,19 @@ class GameEngine:
             duration = command.duration or self.config.default_action_time_seconds
             await self._emit("actor.waited", actor_id=command.actor_id, payload={"duration": duration})
             return duration
+        if isinstance(command, EndTurnCommand):
+            await self._emit("timeline.turn_ended", actor_id=command.actor_id)
+            return self.rules.round_seconds
+        if isinstance(command, RestCommand):
+            return await self._rest(command)
+        if isinstance(command, PrepareSpellsCommand):
+            await self._emit("spell.preparation_updated", actor_id=command.actor_id, payload={"spell_ids": sorted(command.spell_ids)})
+            return 0.0
+        if isinstance(command, ReactionCommand):
+            return await self._reaction(command)
+        if isinstance(command, TravelCommand):
+            await self.campaign_runner.travel(command.actor_id, command.map_id, command.destination_node_id, command.pace)
+            return self.rules.round_seconds
         if isinstance(command, InteractCommand):
             await self._emit(
                 "entity.interacted",
@@ -460,13 +501,14 @@ class GameEngine:
     async def _begin_cast(self, command: CastCommand) -> float:
         caster = self.state.require_entity(command.actor_id)
         spell = self.spells.require(command.spell_id)
-        if caster.resources.energy < spell.energy_cost:
-            raise ValueError("insufficient energy")
+        if not self.characters.has_character(caster):
+            if caster.resources.energy < spell.energy_cost:
+                raise ValueError("insufficient energy")
+            caster.resources.energy -= spell.energy_cost
         target_id = command.target_id or caster.id
         target = self.state.require_entity(target_id)
         if caster.position.distance_to(target.position) > spell.range:
             raise ValueError("spell target is out of range")
-        caster.resources.energy -= spell.energy_cost
         await self._emit(
             "spell.cast_started",
             actor_id=caster.id,
@@ -586,6 +628,73 @@ class GameEngine:
         )
         return self.config.default_action_time_seconds / 2
 
+    async def _rest(self, command: RestCommand) -> float:
+        actor = self.state.require_entity(command.actor_id)
+        if not self.characters.has_character(actor):
+            raise ValueError("rest resources require a built character")
+        active_encounters = [
+            encounter for encounter in self.combat.encounters.values()
+            if encounter.active and actor.id in encounter.participants
+        ]
+        if active_encounters:
+            raise ValueError("cannot take a rest during an active encounter")
+        minutes = 60.0 if command.rest_kind == "short" else 480.0
+        await self._advance_world_minutes(minutes)
+        result = self.characters.recover(actor, command.rest_kind, hit_dice_to_spend=command.hit_dice_to_spend)
+        await self._emit("character.rest_completed", actor_id=actor.id, payload={"kind": command.rest_kind, "minutes": minutes, **result})
+        return 0.0
+
+    async def _reaction(self, command: ReactionCommand) -> float:
+        window = self._reaction_windows.get(command.window_id)
+        if window is None:
+            raise ValueError("reaction window is not active")
+        eligible = set(window.get("eligible_actor_ids", []))
+        if command.actor_id not in eligible:
+            raise ValueError("actor is not eligible for this reaction window")
+        allowed = set(window.get("allowed_reactions", []))
+        if allowed and command.reaction_id not in allowed:
+            raise ValueError("reaction is not allowed in this window")
+        await self._emit("reaction.resolved", actor_id=command.actor_id, target_id=command.target_id, payload={"window_id": command.window_id, "reaction_id": command.reaction_id})
+        eligible.discard(command.actor_id)
+        window["eligible_actor_ids"] = sorted(eligible)
+        if not eligible:
+            self._reaction_windows.pop(command.window_id, None)
+            await self._emit("reaction.window_closed", payload={"window_id": command.window_id, "reason": "resolved"})
+        return 0.0
+
+    async def open_reaction_window(
+        self,
+        *,
+        trigger_event_id: str,
+        eligible_actor_ids: set[str],
+        allowed_reactions: set[str] | None = None,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        window_id = str(uuid4())
+        timeout = self.config.reaction_timeout_seconds if timeout_seconds is None else max(0.0, timeout_seconds)
+        self._reaction_windows[window_id] = {
+            "trigger_event_id": trigger_event_id,
+            "eligible_actor_ids": sorted(eligible_actor_ids),
+            "allowed_reactions": sorted(allowed_reactions or set()),
+            "expires_at": self.scheduler.now + timeout,
+        }
+        if timeout > 0:
+            self.scheduler.schedule("reaction_window_expire", delay=timeout, payload={"window_id": window_id})
+        await self._emit("reaction.window_opened", payload={"window_id": window_id, **self._reaction_windows[window_id]})
+        return window_id
+
+    async def _advance_world_minutes(self, minutes: float) -> None:
+        if minutes < 0:
+            raise ValueError("world time cannot move backward")
+        before_weather = self.world.weather.current
+        self.state.world_minutes += minutes
+        world_advance = self.world.advance(minutes, self.state)
+        if world_advance.weather_after != before_weather:
+            await self._emit("weather.changed", payload={"weather": world_advance.weather_after.value})
+        for rule in world_advance.dynamic_events:
+            await self._emit(rule.event_type, payload=rule.payload)
+        await self._emit("world.time_advanced", payload={"minutes": minutes, "world_time": self.world.clock.display()})
+
     async def _advance_simulation(self, delta: float) -> None:
         if delta < 0:
             raise ValueError("simulation delta cannot be negative")
@@ -639,6 +748,10 @@ class GameEngine:
                 await self._emit(str(task.payload.get("event_type", "world.dynamic")), actor_id=task.actor_id, payload=task.payload)
             elif task.kind == "player_timeout":
                 await self._emit("timeline.player_timeout", actor_id=task.actor_id)
+            elif task.kind == "reaction_window_expire":
+                window_id = str(task.payload.get("window_id", ""))
+                if self._reaction_windows.pop(window_id, None) is not None:
+                    await self._emit("reaction.window_closed", payload={"window_id": window_id, "reason": "timeout"})
             # Strict turns and configured tactical decision windows are true
             # scheduling barriers: work later in the same timestamp is deferred.
             if self._ready_humans and (
@@ -661,8 +774,9 @@ class GameEngine:
             await self._ai_take_action(actor)
             return
         if actor.controller is ControllerKind.HUMAN:
+            self.characters.begin_turn(actor)
             self._ready_humans.add(actor.id)
-            await self._emit("timeline.actor_ready", actor_id=actor.id)
+            await self._emit("timeline.actor_ready", actor_id=actor.id, payload={"actions": self.characters.available_actions(actor)})
             if self.config.time_mode in {TimeMode.TIMED_TURN_BASED, TimeMode.REAL_TIME_WITH_PAUSE, TimeMode.HYBRID} and self.config.pause_when_player_ready:
                 timeout = self.config.player_decision_timeout_seconds
                 if timeout is not None:
@@ -1002,6 +1116,7 @@ class GameEngine:
             "ready_humans": sorted(self._ready_humans),
             "decision_pause_remaining": self._decision_pause_remaining,
             "registered_ai": sorted(self._registered_ai),
+            "reaction_windows": self._reaction_windows,
             "rules": self.rules.model_dump(mode="json"),
             "living": {
                 "weather": {
@@ -1057,4 +1172,10 @@ class GameEngine:
             "scheduler": self.scheduler.snapshot(),
             "weather": self.world.weather.current.value,
             "world_time": self.world.clock.display(),
+            "campaign_runner": self.campaign_runner.state().model_dump(mode="json"),
+            "character_actions": {
+                entity.id: self.characters.available_actions(entity)
+                for entity in self.state.entities.values()
+                if self.characters.has_character(entity)
+            },
         }
