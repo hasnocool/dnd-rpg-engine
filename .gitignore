@@ -12,3 +12,6 @@ htmlcov/
 .DS_Store
 build/
 dist/
+
+# Official SRD local reference cache
+.cache/srd/

@@ -21,6 +21,7 @@ from dnd_rpg_engine.core.models import (
     TimeMode,
 )
 from dnd_rpg_engine.core.persistence import SQLiteStore
+from dnd_rpg_engine.rulesets.srd_5_2_1 import OFFICIAL_SRD_SOURCE, fetch_official_srd_pdf
 
 app = typer.Typer(help="Deterministic RPG engine CLI.", no_args_is_help=True)
 
@@ -165,6 +166,23 @@ async def _play(mode: TimeMode, timeout: float) -> None:
                     await task
                 except asyncio.CancelledError:
                     pass
+
+
+@app.command("srd-info")
+def srd_info() -> None:
+    """Show provenance for the bundled opt-in SRD 5.2.1 integration."""
+    typer.echo(json.dumps(OFFICIAL_SRD_SOURCE.model_dump(mode="json"), indent=2))
+
+
+@app.command("fetch-srd")
+def fetch_srd(output: Path = Path(".cache/srd/SRD_CC_v5.2.1.pdf")) -> None:
+    """Cache the allowlisted official SRD 5.2.1 PDF for local reference."""
+    asyncio.run(_fetch_srd(output))
+
+
+async def _fetch_srd(output: Path) -> None:
+    destination = await fetch_official_srd_pdf(output)
+    typer.echo(str(destination))
 
 
 @app.command()

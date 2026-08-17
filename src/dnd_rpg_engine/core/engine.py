@@ -385,10 +385,22 @@ class GameEngine:
         if distance > action.range:
             raise ValueError(f"target is out of action range ({distance:.2f} > {action.range:.2f})")
         active = self._active_conditions(actor)
+        target_active = self._active_conditions(target)
         if any(self.conditions.require(condition.condition_id).blocks_actions for condition in active):
             raise ValueError("actor is prevented from acting by a condition")
-        resolution = self.combat.resolve_attack(actor, target, action, active_conditions=active)
-        applied = target.resources.apply_damage(resolution.damage) if resolution.hit else 0
+        resolution = self.combat.resolve_attack(
+            actor,
+            target,
+            action,
+            active_conditions=active,
+            target_conditions=target_active,
+        )
+        typed_damage = self.combat.apply_damage_traits(target, resolution.damage, action.damage_type)
+        was_at_zero = target.resources.hp == 0
+        hp_before = target.resources.hp
+        temp_before = target.resources.temp_hp
+        applied = target.resources.apply_damage(typed_damage) if resolution.hit else 0
+        excess_damage = max(0, typed_damage - temp_before - hp_before) if resolution.hit else 0
         await self._emit(
             "combat.attack_resolved",
             actor_id=actor_id,
@@ -396,18 +408,27 @@ class GameEngine:
             payload={
                 "action_id": action_id,
                 "roll": resolution.roll,
+                "raw_rolls": list(resolution.raw_rolls),
                 "modifier": resolution.modifier,
                 "total": resolution.total,
                 "defense": resolution.defense,
                 "hit": resolution.hit,
                 "critical": resolution.critical,
                 "damage": applied,
+                "damage_type": action.damage_type,
                 "remaining_hp": target.resources.hp,
+                "temporary_hp": target.resources.temp_hp,
             },
         )
         if target.resources.hp == 0 and target.alive:
-            target.alive = False
-            await self._emit("combat.entity_defeated", actor_id=actor_id, target_id=target_id)
+            await self._handle_zero_hp(
+                target,
+                source_id=actor_id,
+                critical=resolution.critical,
+                damage=typed_damage,
+                excess_damage=excess_damage,
+                was_at_zero=was_at_zero,
+            )
         return action.time_cost
 
     async def _move(self, command: MoveCommand) -> float:
@@ -470,14 +491,26 @@ class GameEngine:
         payload: dict[str, object] = {"spell_id": spell.id}
         if spell.damage and target.alive:
             amount = max(0, self.dice.roll(spell.damage, stream=f"spell:damage:{caster.id}:{spell.id}").total)
-            payload["damage"] = target.resources.apply_damage(amount)
+            typed_damage = self.combat.apply_damage_traits(target, amount, spell.damage_type)
+            was_at_zero = target.resources.hp == 0
+            hp_before = target.resources.hp
+            temp_before = target.resources.temp_hp
+            payload["damage"] = target.resources.apply_damage(typed_damage)
             payload["remaining_hp"] = target.resources.hp
+            payload["temporary_hp"] = target.resources.temp_hp
             if target.resources.hp == 0 and target.alive:
-                target.alive = False
-                await self._emit("combat.entity_defeated", actor_id=caster.id, target_id=target.id)
+                await self._handle_zero_hp(
+                    target,
+                    source_id=caster.id,
+                    damage=typed_damage,
+                    excess_damage=max(0, typed_damage - temp_before - hp_before),
+                    was_at_zero=was_at_zero,
+                )
         if spell.heal:
             amount = max(0, self.dice.roll(spell.heal, stream=f"spell:heal:{caster.id}:{spell.id}").total)
             payload["healed"] = target.resources.heal(amount)
+            if target.resources.hp > 0:
+                await self._recover_from_zero_hp(target)
         if spell.applies_condition:
             await self._apply_condition(
                 target.id,
@@ -498,6 +531,8 @@ class GameEngine:
         if item.heal:
             amount = self.dice.roll(item.heal, stream=f"item:heal:{actor.id}:{item.id}").total
             payload["healed"] = target.resources.heal(amount)
+            if target.resources.hp > 0:
+                await self._recover_from_zero_hp(target)
         if item.energy_restore:
             before = target.resources.energy
             target.resources.energy = min(target.resources.max_energy, target.resources.energy + item.energy_restore)
@@ -619,6 +654,9 @@ class GameEngine:
         actor = self.state.entities.get(task.actor_id or "")
         if actor is None or not actor.alive:
             return
+        if self.rules.death_saves_enabled and actor.resources.hp == 0 and actor.component("death_saves"):
+            await self._resolve_death_save(actor)
+            return
         if actor.controller is ControllerKind.AI:
             await self._ai_take_action(actor)
             return
@@ -732,12 +770,21 @@ class GameEngine:
         definition = self.conditions.require(condition_id)
         if definition.periodic_damage:
             amount = self.dice.roll(definition.periodic_damage, stream=f"condition:{entity.id}:{condition_id}").total
+            was_at_zero = entity.resources.hp == 0
+            hp_before = entity.resources.hp
+            temp_before = entity.resources.temp_hp
             applied = entity.resources.apply_damage(amount)
             await self._emit("condition.tick", actor_id=active.source_id, target_id=entity.id, payload={"condition_id": condition_id, "damage": applied})
             if entity.resources.hp == 0:
-                entity.alive = False
-                await self._emit("combat.entity_defeated", actor_id=active.source_id, target_id=entity.id)
-                return
+                await self._handle_zero_hp(
+                    entity,
+                    source_id=active.source_id,
+                    damage=amount,
+                    excess_damage=max(0, amount - temp_before - hp_before),
+                    was_at_zero=was_at_zero,
+                )
+                if not entity.alive:
+                    return
         if definition.periodic_interval and (active.expires_at is None or self.scheduler.now + definition.periodic_interval < active.expires_at):
             self.scheduler.schedule(
                 "condition_tick",
@@ -746,6 +793,101 @@ class GameEngine:
                 payload=task.payload,
                 priority=20,
             )
+
+    async def _handle_zero_hp(
+        self,
+        entity: Entity,
+        *,
+        source_id: str | None = None,
+        critical: bool = False,
+        damage: int = 0,
+        excess_damage: int = 0,
+        was_at_zero: bool = False,
+    ) -> None:
+        if not self.rules.death_saves_enabled or entity.kind is not EntityKind.PLAYER:
+            entity.alive = False
+            await self._emit("combat.entity_defeated", actor_id=source_id, target_id=entity.id)
+            return
+        if excess_damage >= entity.resources.max_hp:
+            entity.alive = False
+            await self._emit(
+                "combat.entity_defeated",
+                actor_id=source_id,
+                target_id=entity.id,
+                payload={"reason": "massive_damage"},
+            )
+            return
+        death = entity.component("death_saves")
+        if not was_at_zero:
+            death.update({"successes": 0, "failures": 0, "stable": False})
+            if self.conditions.get("unconscious") is not None and not any(
+                condition.condition_id == "unconscious" for condition in self._active_conditions(entity)
+            ):
+                await self._apply_condition(entity.id, "unconscious", source_id=source_id)
+            self.scheduler.cancel_matching(kind="actor_ready", actor_id=entity.id)
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+            await self._emit("combat.death_saves_started", actor_id=source_id, target_id=entity.id)
+            return
+        if bool(death.get("stable")):
+            death["stable"] = False
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+        failures = 2 if critical else 1
+        death["stable"] = False
+        death["failures"] = int(death.get("failures", 0)) + failures
+        await self._emit(
+            "combat.death_save_damage_failure",
+            actor_id=source_id,
+            target_id=entity.id,
+            payload={"failures_added": failures, "failures": death["failures"], "damage": damage},
+        )
+        if death["failures"] >= self.rules.death_save_failures_required:
+            entity.alive = False
+            await self._emit("combat.entity_defeated", actor_id=source_id, target_id=entity.id)
+
+    async def _resolve_death_save(self, entity: Entity) -> None:
+        death = entity.component("death_saves")
+        if bool(death.get("stable")) or entity.resources.hp > 0:
+            return
+        roll = self.dice.d20(stream=f"death_save:{entity.id}")
+        if roll == 20:
+            entity.resources.hp = 1
+            await self._recover_from_zero_hp(entity)
+            await self._emit("combat.death_save", actor_id=entity.id, payload={"roll": roll, "recovered_hp": 1})
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+            return
+        if roll == 1:
+            death["failures"] = int(death.get("failures", 0)) + 2
+        elif roll >= self.rules.death_save_dc:
+            death["successes"] = int(death.get("successes", 0)) + 1
+        else:
+            death["failures"] = int(death.get("failures", 0)) + 1
+        await self._emit(
+            "combat.death_save",
+            actor_id=entity.id,
+            payload={
+                "roll": roll,
+                "successes": int(death.get("successes", 0)),
+                "failures": int(death.get("failures", 0)),
+            },
+        )
+        if int(death.get("failures", 0)) >= self.rules.death_save_failures_required:
+            entity.alive = False
+            await self._emit("combat.entity_defeated", target_id=entity.id)
+            return
+        if int(death.get("successes", 0)) >= self.rules.death_save_successes_required:
+            death["stable"] = True
+            death["successes"] = 0
+            death["failures"] = 0
+            await self._emit("combat.stabilized", target_id=entity.id)
+            return
+        self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+
+    async def _recover_from_zero_hp(self, entity: Entity) -> None:
+        death = entity.component("death_saves")
+        if death:
+            death.update({"successes": 0, "failures": 0, "stable": False})
+        active = [condition for condition in self._active_conditions(entity) if condition.condition_id != "unconscious"]
+        self._set_conditions(entity, active)
 
     def _schedule_actor_ready(self, actor_id: str, *, delay: float) -> None:
         self.scheduler.schedule("actor_ready", delay=max(0.0, delay), actor_id=actor_id, priority=100)

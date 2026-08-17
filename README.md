@@ -2,7 +2,9 @@
 
 A headless, deterministic fantasy RPG simulation platform that can power **turn-based, timed-turn, real-time, real-time-with-pause, hybrid, text, TUI, browser, 2D, 3D, and multiplayer games** from the same authoritative world state.
 
-The repository intentionally separates rules/simulation from presentation. It does **not** ship proprietary Dungeons & Dragons books, spell lists, monster text, or other copyrighted game content. Add only content you have the right to use (for example your own material or appropriately licensed open content).
+The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It now includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
+
+See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SRD-5.2.md).
 
 ## What is implemented
 
@@ -85,6 +87,13 @@ Run the Textual client:
 
 ```bash
 rpg-engine-tui
+```
+
+Inspect the bundled SRD source metadata or cache the exact official SRD 5.2.1 PDF locally:
+
+```bash
+rpg-engine srd-info
+rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.1.pdf
 ```
 
 ## Architecture
@@ -187,4 +196,4 @@ CI tests Python 3.12, 3.13, and 3.14, compiles the package, and runs the full te
 
 ## License
 
-Engine code is MIT licensed. Third-party campaign/rules content can carry its own license through each mod manifest.
+Engine code is MIT licensed. Third-party campaign/rules content can carry its own license through each mod manifest. The bundled SRD 5.2.1 integration is separately attributed under CC BY 4.0; see `NOTICE-SRD-5.2.md`.

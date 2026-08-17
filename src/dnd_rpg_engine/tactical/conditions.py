@@ -1,7 +1,11 @@
 # src/dnd_rpg_engine/tactical/conditions.py
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+RollEffect = Literal["normal", "advantage", "disadvantage"]
 
 
 class ConditionDefinition(BaseModel):
@@ -13,6 +17,9 @@ class ConditionDefinition(BaseModel):
     blocks_actions: bool = False
     periodic_damage: str | None = None
     periodic_interval: float | None = Field(default=None, gt=0)
+    attack_roll_mode: RollEffect = "normal"
+    attacks_against_mode: RollEffect = "normal"
+    tags: set[str] = Field(default_factory=set)
 
 
 class ActiveCondition(BaseModel):
@@ -34,6 +41,9 @@ class ConditionRegistry:
             return self._definitions[condition_id]
         except KeyError as exc:
             raise KeyError(f"unknown condition: {condition_id}") from exc
+
+    def get(self, condition_id: str) -> ConditionDefinition | None:
+        return self._definitions.get(condition_id)
 
 
 def default_conditions() -> ConditionRegistry:
