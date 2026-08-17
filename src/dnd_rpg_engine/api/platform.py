@@ -23,8 +23,8 @@ def create_platform_app(
     """Build the current platform while preserving all existing /api/v1 routes.
 
     The compatibility app remains available through ``advanced=False``. The
-    default profile uses ``WorldPlatformEngine`` so v1.2-v3.0 services share the
-    same authoritative campaign state and existing command/event contracts.
+    default advanced profile uses ``WorldPlatformEngine`` so v1.2-v3.0 services
+    share the same authoritative campaign state and command/event contracts.
     """
 
     legacy = importlib.import_module("dnd_rpg_engine.api.app")
@@ -51,7 +51,10 @@ def create_platform_app(
         return {
             "status": "ok",
             "version": __version__,
-            "engine_profile": "world" if advanced else "compatibility",
+            # Keep the established compatibility field stable. WorldPlatformEngine
+            # is an AdvancedGameEngine profile, not a new external API mode.
+            "engine_profile": "advanced" if advanced else "compatibility",
+            "platform_profile": "world" if advanced else "compatibility",
             "database_backend": "postgresql"
             if database_url.startswith(("postgres://", "postgresql://"))
             else "sqlite",
