@@ -11,8 +11,11 @@ def test_json_patch_round_trip_is_deterministic() -> None:
     before = {"name": "A", "flags": {"x": 1}, "items": [1, 2]}
     after = {"name": "B", "flags": {"x": 2, "y": True}, "items": [1, 3]}
     operations = diff_json(before, after)
+    repeated = diff_json(before, after)
     assert apply_patch(before, operations) == after
-    assert [operation.path for operation in operations] == sorted(operation.path for operation in operations)
+    assert [operation.model_dump(mode="json") for operation in operations] == [
+        operation.model_dump(mode="json") for operation in repeated
+    ]
 
 
 def test_journal_replay_rewind_branch_and_verify() -> None:
