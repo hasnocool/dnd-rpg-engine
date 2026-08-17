@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dnd-rpg-engine"
-version = "1.8.0"
-description = "Headless deterministic fantasy RPG simulation engine for turn-based, timed, hybrid, real-time, web, TUI, 2D, and 3D games."
+version = "3.0.0"
+description = "Headless deterministic fantasy RPG world platform with executable rules, campaign orchestration, simulation, knowledge authority, visual runtime sync, and distributed-world foundations."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
