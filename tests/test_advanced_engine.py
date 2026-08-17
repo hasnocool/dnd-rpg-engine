@@ -5,7 +5,9 @@ import pytest
 
 from dnd_rpg_engine import AdvancedGameEngine
 from dnd_rpg_engine.core.commands import CustomCommand, MoveCommand
-from dnd_rpg_engine.core.models import ControllerKind, Entity, EntityKind, GameConfig, Position, TimeMode
+from dnd_rpg_engine.core.models import ControllerKind, Entity, EntityKind, GameConfig, Position, ResourcePool, TimeMode
+from dnd_rpg_engine.creator.loader import install_content_pack
+from dnd_rpg_engine.rulesets.srd_5_2_1 import SRD_5_2_1_RULESET, build_srd_5_2_1_pack
 from dnd_rpg_engine.spatial import GraphSpace, GridSpace, TerrainCell
 
 
@@ -68,6 +70,37 @@ async def test_advanced_engine_supports_graph_move_through_custom_command() -> N
 
 
 @pytest.mark.asyncio
+async def test_rejected_spatial_move_leaves_state_unchanged() -> None:
+    engine = await AdvancedGameEngine.create(config=GameConfig(time_mode=TimeMode.TURN_BASED, seed=24))
+    graph = GraphSpace("world")
+    graph.add_node("a")
+    graph.add_node("b")
+    graph.add_edge("a", "b", cost=1.0)
+    engine.register_spatial_space(graph)
+    hero = Entity(
+        id="hero",
+        name="Hero",
+        kind=EntityKind.PLAYER,
+        controller=ControllerKind.HUMAN,
+        position=Position(area_id="world", node_id="a"),
+        components={"spatial": {"space_id": "world"}, "movement": {"units_per_second": 0.0}},
+    )
+    await engine.add_entity(hero)
+    graph.place("hero", "a")
+
+    with pytest.raises(ValueError, match="cannot move"):
+        await engine.dispatch(
+            CustomCommand(
+                actor_id="hero",
+                name="spatial_move",
+                payload={"space_id": "world", "destination": "b"},
+            )
+        )
+    assert graph.occupants["hero"] == "a"
+    assert hero.position.node_id == "a"
+
+
+@pytest.mark.asyncio
 async def test_advanced_engine_uses_intelligent_actor_planner() -> None:
     engine = await AdvancedGameEngine.create(
         config=GameConfig(time_mode=TimeMode.REAL_TIME, seed=23, pause_when_player_ready=False)
@@ -96,3 +129,26 @@ async def test_advanced_engine_uses_intelligent_actor_planner() -> None:
     assert decision.payload["candidate"] == "attack"
     assert any(event.type == "combat.attack_resolved" and event.actor_id == "enemy" for event in result.events)
     assert enemy.component("agent_memory")["entries"]
+
+
+@pytest.mark.asyncio
+async def test_advanced_engine_delegates_srd_zero_hp_state_to_runtime() -> None:
+    engine = await AdvancedGameEngine.create(config=GameConfig(time_mode=TimeMode.TURN_BASED, seed=25))
+    install_content_pack(engine, build_srd_5_2_1_pack())
+    engine.activate_rules(SRD_5_2_1_RULESET)
+    hero = Entity(
+        id="hero",
+        name="Hero",
+        kind=EntityKind.PLAYER,
+        controller=ControllerKind.HUMAN,
+        resources=ResourcePool(hp=0, max_hp=12),
+    )
+    await engine.add_entity(hero)
+
+    await engine._handle_zero_hp(hero, source_id="hazard", damage=2, was_at_zero=False)
+
+    assert hero.alive is True
+    assert hero.component("death_saves")["successes"] == 0
+    assert hero.component("death_saves")["failures"] == 0
+    assert any(condition.condition_id == "unconscious" for condition in engine._active_conditions(hero))
+    assert engine.combat.runtime.has_capability("death_saves")
