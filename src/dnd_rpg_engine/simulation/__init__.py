@@ -1,3 +1,4 @@
+from dnd_rpg_engine.simulation.duel import DuelScenario, DuelSimulationCase
 from dnd_rpg_engine.simulation.lab import (
     BalanceAnalyzer,
     ExperimentDefinition,
@@ -10,6 +11,8 @@ from dnd_rpg_engine.simulation.lab import (
 
 __all__ = [
     "BalanceAnalyzer",
+    "DuelScenario",
+    "DuelSimulationCase",
     "ExperimentDefinition",
     "ExperimentFinding",
     "ExperimentReport",
