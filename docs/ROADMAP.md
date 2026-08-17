@@ -165,3 +165,88 @@
 - [x] validated export and marketplace publishing
 - [x] v1.8 platform application factory and health/version reporting
 - [x] main `rpg-engine serve` command launches the complete Studio-capable platform
+
+## v1.9 Identity, RBAC + Multi-Tenancy — complete
+- [x] authenticated users separated from transport clients
+- [x] signed expiring server-side sessions with revocation
+- [x] organizations and workspaces
+- [x] organization/workspace/campaign/project memberships
+- [x] owner/admin/game-master/player/spectator/creator/moderator roles
+- [x] resource-scoped permission policy engine
+- [x] persistent campaign/project tenant ancestry
+- [x] character ownership authorization
+- [x] authenticated secure campaign create/list/join APIs
+- [x] authenticated client-to-session binding
+- [x] Creator Studio project collaboration boundaries
+- [x] audit records for security-sensitive operations
+- [x] authenticated mode closes legacy caller-asserted command/join/publish paths
+
+## v2.0 Distributed World Runtime — complete
+- [x] world partitions and authoritative zone definitions
+- [x] stable rendezvous-hash zone placement
+- [x] PostgreSQL-backed atomic zone ownership leases
+- [x] SQLite process-local development lease fallback
+- [x] two-phase entity handoff (`PREPARED -> SOURCE_COMMITTED -> ACCEPTED`)
+- [x] canonical entity/transfer hashes and verification
+- [x] zone adjacency and capacity validation
+- [x] persisted handoff records
+- [x] distributed world/placement/lease/handoff APIs
+
+## v2.1 Content Package Graph + Versioning — complete
+- [x] semantic-version parser and constraints
+- [x] package release metadata and content hashes
+- [x] deterministic dependency resolver
+- [x] engine compatibility constraints
+- [x] deterministic package lockfiles
+- [x] dependency-conflict detection
+- [x] declared migration compatibility
+- [x] upgrade planning
+- [x] tenant-aware package publication and package APIs
+
+## v2.2 Simulation Lab + Automated Balancing — complete
+- [x] deterministic derived experiment seeds
+- [x] async bounded-concurrency experiment runner
+- [x] win-rate, duration, knockout, resource, and metric aggregation
+- [x] reproducible experiment digests
+- [x] configurable balance findings
+- [x] multi-variant comparisons
+- [x] rules-runtime-backed campaign duel simulation
+- [x] campaign simulation authorization/API
+
+## v2.3 Advanced Multiplayer Runtime — complete
+- [x] exact per-client command sequences
+- [x] retry-safe command acknowledgements/idempotency
+- [x] command fingerprint mismatch protection
+- [x] bounded retry receipt ledgers
+- [x] application command rate limiting
+- [x] presence/heartbeat tracking
+- [x] event subscriptions
+- [x] bounded backpressure buffers and state coalescing primitives
+- [x] authenticated reliable REST command API
+- [x] authenticated reliable WebSocket channel
+- [x] production authenticated mode removes legacy unauthenticated WebSocket
+
+## v2.4 AI Director / Campaign Brain — complete
+- [x] persistent campaign-level Director state
+- [x] unresolved story-thread tracking
+- [x] tension, repetition, faction-pressure observations
+- [x] deterministic structured proposals
+- [x] bounded persistent proposal ledger
+- [x] provider context without writable engine objects
+- [x] command validation before proposal attachment
+- [x] approval/rejection workflow
+- [x] approved actions still dispatch through authenticated `CampaignSession`
+- [x] Director management API and audit trail
+
+## v2.5 Full Game Client SDK — complete
+- [x] Python async client SDK
+- [x] authenticated session bootstrap support
+- [x] campaign create/join handles
+- [x] automatic reliable command sequencing
+- [x] event cursor tracking
+- [x] TypeScript fetch/WebSocket SDK
+- [x] buildable TypeScript package metadata/configuration
+- [x] Godot reliable WebSocket client helper
+- [x] stable `/api/v1` server namespace retained across package generation change
+- [x] v2.5 platform health/capability reporting
+- [x] end-to-end authenticated platform regression coverage
