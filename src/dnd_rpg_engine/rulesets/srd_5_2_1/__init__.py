@@ -10,11 +10,15 @@ from dnd_rpg_engine.rulesets.srd_5_2_1.rules import (
     spell_attack_bonus,
     spell_save_dc,
 )
+from dnd_rpg_engine.rulesets.srd_5_2_1.runtime import DeathSaveOutcome, SRD521RulesRuntime, ZeroHPTransition
 from dnd_rpg_engine.rulesets.srd_5_2_1.source import OFFICIAL_SRD_SOURCE, fetch_official_srd_pdf
 
 __all__ = [
+    "DeathSaveOutcome",
     "OFFICIAL_SRD_SOURCE",
+    "SRD521RulesRuntime",
     "SRD_5_2_1_RULESET",
+    "ZeroHPTransition",
     "build_srd_5_2_1_pack",
     "entity_proficiency_bonus",
     "fetch_official_srd_pdf",
