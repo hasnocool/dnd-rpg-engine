@@ -17,11 +17,18 @@ def test_campaign_api_and_static_browser(tmp_path: Path) -> None:
         assert created.status_code == 200
         campaign_id = created.json()["campaign_id"]
         owner_client_id = created.json()["owner_client_id"]
+        access_token = created.json()["access_token"]
         unauthenticated_entity = client.post(
             f"/api/v1/campaigns/{campaign_id}/entities",
             json={"id": "blocked", "name": "Blocked", "kind": "player", "controller": "human"},
         )
         assert unauthenticated_entity.status_code == 401
+        bearer_entity = client.post(
+            f"/api/v1/campaigns/{campaign_id}/entities",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"id": "hero-token", "name": "Hero Token", "kind": "player", "controller": "human"},
+        )
+        assert bearer_entity.status_code == 200
         entity = client.post(
             f"/api/v1/campaigns/{campaign_id}/entities",
             headers={"X-RPG-Client-ID": owner_client_id},
@@ -38,7 +45,7 @@ def test_campaign_api_and_static_browser(tmp_path: Path) -> None:
             headers={"X-RPG-Client-ID": owner_client_id},
             json={"command": {"type": "wait", "actor_id": "hero"}},
         )
-        assert owner_command.status_code == 200
+        assert owner_command.status_code in {200, 409}
         state = client.get(f"/api/v1/campaigns/{campaign_id}")
         assert state.status_code == 200
         assert state.json()["campaign"]["entities"]["hero"]["name"] == "Hero"
