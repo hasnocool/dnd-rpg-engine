@@ -1,4 +1,3 @@
-# src/dnd_rpg_engine/creator/studio.py
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -49,6 +48,9 @@ class StudioProject(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str
     pack: ContentPack
+    owner_user_id: str | None = None
+    organization_id: str | None = None
+    workspace_id: str | None = None
     revision: int = Field(default=0, ge=0)
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -76,9 +78,18 @@ class CreatorStudio:
         *,
         name: str,
         manifest: ModManifest | dict[str, Any],
+        owner_user_id: str | None = None,
+        organization_id: str | None = None,
+        workspace_id: str | None = None,
     ) -> StudioProject:
         parsed_manifest = manifest if isinstance(manifest, ModManifest) else ModManifest.model_validate(manifest)
-        project = StudioProject(name=name, pack=ContentPack(manifest=parsed_manifest))
+        project = StudioProject(
+            name=name,
+            pack=ContentPack(manifest=parsed_manifest),
+            owner_user_id=owner_user_id,
+            organization_id=organization_id,
+            workspace_id=workspace_id,
+        )
         await self._persist(project, snapshot=True)
         return project
 
