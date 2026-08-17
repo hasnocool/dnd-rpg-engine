@@ -1,4 +1,3 @@
-# src/dnd_rpg_engine/rulesets/srd_5_2_1/__init__.py
 """Opt-in structured implementation of the CC-licensed SRD 5.2.1 foundation."""
 
 from dnd_rpg_engine.rulesets.srd_5_2_1.catalog_store import SRDCatalogStore
@@ -18,7 +17,12 @@ from dnd_rpg_engine.rulesets.srd_5_2_1.rules import (
     spell_attack_bonus,
     spell_save_dc,
 )
-from dnd_rpg_engine.rulesets.srd_5_2_1.runtime import SRDRuntimeCatalog
+from dnd_rpg_engine.rulesets.srd_5_2_1.runtime import (
+    DeathSaveOutcome,
+    SRD521RulesRuntime,
+    SRDRuntimeCatalog,
+    ZeroHPTransition,
+)
 from dnd_rpg_engine.rulesets.srd_5_2_1.source import OFFICIAL_SRD_SOURCE, fetch_official_srd_pdf
 from dnd_rpg_engine.rulesets.srd_5_2_1.toolbox import (
     CR_XP,
@@ -35,9 +39,11 @@ from dnd_rpg_engine.rulesets.srd_5_2_1.toolbox import (
 
 __all__ = [
     "CR_XP",
+    "DeathSaveOutcome",
     "ENCOUNTER_BUDGETS",
     "ENVIRONMENTAL_RULES",
     "OFFICIAL_SRD_SOURCE",
+    "SRD521RulesRuntime",
     "SRDCompilerDependencyError",
     "SRDCompilerError",
     "SRDCatalogStore",
@@ -46,6 +52,7 @@ __all__ = [
     "SRD_5_2_1_RULESET",
     "TERRAIN_TRAVEL_RULES",
     "TRAVEL_PACES",
+    "ZeroHPTransition",
     "build_encounter_candidate",
     "build_srd_5_2_1_pack",
     "compile_document",
