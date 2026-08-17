@@ -6,12 +6,13 @@
   <title>RPG Creator Studio</title>
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="stylesheet" href="/static/creator-studio.css" />
+  <link rel="stylesheet" href="/static/rule-graph.css" />
 </head>
 <body class="studio-body">
   <header class="studio-header">
     <div>
       <h1>Creator Studio</h1>
-      <p>Visual campaigns, maps, creatures, rules, spells, and quests</p>
+      <p>Visual campaigns, maps, creatures, executable rules, spells, and quests</p>
     </div>
     <div class="studio-header-actions">
       <span id="save-state" class="studio-pill">Not saved</span>
@@ -137,5 +138,6 @@
 
   <input id="import-file" type="file" accept="application/json" hidden />
   <script type="module" src="/static/creator.js"></script>
+  <script type="module" src="/static/rule-graph.js"></script>
 </body>
 </html>
