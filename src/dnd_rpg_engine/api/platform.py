@@ -6,6 +6,7 @@ from typing import Type
 from fastapi import FastAPI
 
 from dnd_rpg_engine import __version__
+from dnd_rpg_engine.api.distribution import router as distribution_router
 from dnd_rpg_engine.api.hosting import router as hosting_router
 from dnd_rpg_engine.api.knowledge_routes import install_knowledge_scoped_routes
 from dnd_rpg_engine.api.lifecycle import router as lifecycle_router
@@ -39,7 +40,7 @@ def create_platform_app(
     app.description = (
         "Authoritative deterministic RPG platform with executable content, "
         "campaign orchestration, knowledge-scoped runtime sync, production "
-        "hosting, reconnect/resume, and Creator Studio."
+        "hosting, content distribution, reconnect/resume, and Creator Studio."
     )
 
     app.router.routes[:] = [
@@ -64,6 +65,7 @@ def create_platform_app(
     app.include_router(hosting_router)
     app.include_router(studio_router)
     app.include_router(rule_studio_router)
+    app.include_router(distribution_router)
     app.include_router(world_platform_router)
     if advanced:
         install_knowledge_scoped_routes(app)
