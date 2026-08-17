@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from dnd_rpg_engine import __version__
 from dnd_rpg_engine.api.hosting import router as hosting_router
+from dnd_rpg_engine.api.knowledge_routes import install_knowledge_scoped_routes
 from dnd_rpg_engine.api.lifecycle import router as lifecycle_router
 from dnd_rpg_engine.api.rule_studio import router as rule_studio_router
 from dnd_rpg_engine.api.studio import router as studio_router
@@ -52,8 +53,6 @@ def create_platform_app(
         return {
             "status": "ok",
             "version": __version__,
-            # Keep the established compatibility field stable. WorldPlatformEngine
-            # is an AdvancedGameEngine profile, not a new external API mode.
             "engine_profile": "advanced" if advanced else "compatibility",
             "platform_profile": "world" if advanced else "compatibility",
             "database_backend": "postgresql"
@@ -66,4 +65,6 @@ def create_platform_app(
     app.include_router(studio_router)
     app.include_router(rule_studio_router)
     app.include_router(world_platform_router)
+    if advanced:
+        install_knowledge_scoped_routes(app)
     return app
