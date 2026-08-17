@@ -22,6 +22,7 @@ class ActorKnowledge(BaseModel):
     actor_id: str
     known_entity_ids: set[str] = Field(default_factory=set)
     last_observed_at: dict[str, float] = Field(default_factory=dict)
+    entity_snapshots: dict[str, dict[str, Any]] = Field(default_factory=dict)
     facts: dict[str, KnowledgeFact] = Field(default_factory=dict)
 
 
@@ -35,12 +36,7 @@ class KnowledgeView(BaseModel):
 
 
 class KnowledgeAuthority:
-    """Track what each actor is allowed to know about authoritative truth.
-
-    The service is deliberately separate from ``CampaignState`` truth. Clients
-    and AI can consume a ``KnowledgeView`` without receiving unseen entities,
-    secret flags, or other omniscient state.
-    """
+    """Track what each actor is allowed to know about authoritative truth."""
 
     component_name = "knowledge"
 
@@ -57,10 +53,19 @@ class KnowledgeAuthority:
     def store(self, actor: Entity, knowledge: ActorKnowledge) -> None:
         actor.components[self.component_name] = knowledge.model_dump(mode="json")
 
-    def reveal_entity(self, actor: Entity, entity_id: str, *, now: float) -> ActorKnowledge:
+    def reveal_entity(
+        self,
+        actor: Entity,
+        entity_id: str,
+        *,
+        now: float,
+        entity: Entity | None = None,
+    ) -> ActorKnowledge:
         knowledge = self.knowledge_for(actor)
         knowledge.known_entity_ids.add(entity_id)
         knowledge.last_observed_at[entity_id] = now
+        if entity is not None:
+            knowledge.entity_snapshots[entity_id] = self._remembered_entity(entity)
         self.store(actor, knowledge)
         return knowledge
 
@@ -69,6 +74,7 @@ class KnowledgeAuthority:
         if forget and entity_id != actor.id:
             knowledge.known_entity_ids.discard(entity_id)
             knowledge.last_observed_at.pop(entity_id, None)
+            knowledge.entity_snapshots.pop(entity_id, None)
         self.store(actor, knowledge)
         return knowledge
 
@@ -125,6 +131,7 @@ class KnowledgeAuthority:
             knowledge.last_observed_at[observation.entity_id] = snapshot.simulation_time
             entity = state.entities.get(observation.entity_id)
             if entity is not None:
+                knowledge.entity_snapshots[entity.id] = self._remembered_entity(entity)
                 fact_id = f"entity:{entity.id}:alive"
                 knowledge.facts[fact_id] = KnowledgeFact(
                     id=fact_id,
@@ -145,21 +152,17 @@ class KnowledgeAuthority:
     ) -> KnowledgeView:
         self.expire(actor, now=state.simulation_time)
         knowledge = self.knowledge_for(actor)
-        entity_ids = set(knowledge.known_entity_ids)
-        entity_ids.add(actor.id)
-        entities: dict[str, dict[str, Any]] = {}
-        for entity_id in sorted(entity_ids):
-            entity = state.entities.get(entity_id)
-            if entity is None:
+        entities: dict[str, dict[str, Any]] = {actor.id: actor.model_dump(mode="json")}
+        for entity_id in sorted(knowledge.known_entity_ids - {actor.id}):
+            remembered = knowledge.entity_snapshots.get(entity_id)
+            if remembered is None:
+                if include_stale_entities:
+                    entities[entity_id] = {"id": entity_id, "known": True, "details_known": False}
                 continue
-            if not include_stale_entities and entity_id != actor.id:
-                observed = knowledge.last_observed_at.get(entity_id)
-                if observed is None or observed < state.simulation_time:
-                    continue
-            payload = entity.model_dump(mode="json")
-            if entity_id != actor.id:
-                payload["components"] = self._public_components(payload.get("components", {}))
-            entities[entity_id] = payload
+            observed_at = knowledge.last_observed_at.get(entity_id)
+            if not include_stale_entities and (observed_at is None or observed_at < state.simulation_time):
+                continue
+            entities[entity_id] = dict(remembered)
         return KnowledgeView(
             campaign_id=state.id,
             actor_id=actor.id,
@@ -169,15 +172,15 @@ class KnowledgeAuthority:
             facts={key: value for key, value in sorted(knowledge.facts.items())},
         )
 
+    @classmethod
+    def _remembered_entity(cls, entity: Entity) -> dict[str, Any]:
+        payload = entity.model_dump(mode="json")
+        payload["components"] = cls._public_components(payload.get("components", {}))
+        return payload
+
     @staticmethod
     def _public_components(components: dict[str, Any]) -> dict[str, Any]:
-        public_names = {
-            "appearance",
-            "faction",
-            "movement",
-            "public",
-            "status",
-        }
+        public_names = {"appearance", "faction", "movement", "public", "status"}
         return {
             key: value
             for key, value in sorted(components.items())
