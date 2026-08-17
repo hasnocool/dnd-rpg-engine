@@ -22,11 +22,14 @@ from dnd_rpg_engine.creator.loader import install_content_pack
 from dnd_rpg_engine.creator.marketplace import MarketplaceRegistry
 from dnd_rpg_engine.multiplayer.protocol import ClientIdentity, ClientRole
 from dnd_rpg_engine.multiplayer.sessions import SessionManager
+from dnd_rpg_engine.rulesets.srd_5_2_1.catalog_store import SRDCatalogStore
+from dnd_rpg_engine.rulesets.srd_5_2_1.toolbox import encounter_budget
 
 
 class ApplicationState:
-    def __init__(self, database_path: str) -> None:
+    def __init__(self, database_path: str, srd_catalog_path: str | None = None) -> None:
         self.store = SQLiteStore(database_path)
+        self.srd_catalog = SRDCatalogStore(srd_catalog_path) if srd_catalog_path else None
         self.engines: dict[str, GameEngine] = {}
         self.sessions = SessionManager()
         self.marketplace = MarketplaceRegistry()
@@ -127,12 +130,14 @@ class ApplicationState:
                 await task
 
 
-def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
-    state = ApplicationState(database_path)
+def create_app(database_path: str = "rpg_engine.sqlite3", srd_catalog_path: str | None = None) -> FastAPI:
+    state = ApplicationState(database_path, srd_catalog_path)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await state.store.initialize()
+        if state.srd_catalog is not None:
+            await state.srd_catalog.initialize()
         stored_packs = await state.store.list_json("marketplace.pack")
         for item_id, raw_pack in stored_packs.items():
             try:
@@ -145,14 +150,49 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
 
     app = FastAPI(
         title="RPG Engine API",
-        version="1.0.0",
+        version="1.2.0",
         description="Authoritative deterministic RPG simulation API with configurable turn/time-driven scheduling.",
         lifespan=lifespan,
     )
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "version": "1.0.0"}
+        return {"status": "ok", "version": "1.2.0"}
+
+    @app.get("/api/v1/srd/catalog")
+    async def srd_catalog_info() -> dict[str, Any]:
+        if state.srd_catalog is None:
+            raise HTTPException(status_code=404, detail="offline SRD catalog is not configured")
+        manifest = await state.srd_catalog.manifest()
+        return {
+            "manifest": None if manifest is None else manifest.model_dump(mode="json"),
+            "sections": await state.srd_catalog.sections(),
+        }
+
+    @app.get("/api/v1/srd/catalog/{section}")
+    async def srd_catalog_search(
+        section: str,
+        q: str = Query(default="", max_length=100),
+        limit: int = Query(default=50, ge=1, le=200),
+    ) -> list[dict[str, Any]]:
+        if state.srd_catalog is None:
+            raise HTTPException(status_code=404, detail="offline SRD catalog is not configured")
+        sections = await state.srd_catalog.sections()
+        if section not in sections:
+            raise HTTPException(status_code=404, detail="catalog section not found")
+        return await state.srd_catalog.search(section, q, limit=limit)
+
+    @app.get("/api/v1/srd/encounter-budget")
+    async def srd_encounter_budget(
+        levels: str = Query(min_length=1, max_length=120),
+        difficulty: str = Query(default="moderate", pattern="^(low|moderate|high)$"),
+    ) -> dict[str, Any]:
+        try:
+            parsed = [int(part.strip()) for part in levels.split(",") if part.strip()]
+            budget = encounter_budget(parsed, difficulty)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"levels": parsed, "difficulty": difficulty, "xp_budget": budget}
 
     @app.post("/api/v1/campaigns")
     async def create_campaign(request: CreateCampaignRequest) -> dict[str, Any]:
