@@ -62,7 +62,7 @@ class SRDSourceMetadata(BaseModel):
     rules_generation: str = "5.5e"
     published_date: str = "2025-05-01"
     release_page: str = "https://www.dndbeyond.com/srd"
-    pdf_url: str = "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.pdf"
+    pdf_url: str = "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf"
     license_id: str = "CC-BY-4.0"
     license_url: str = "https://creativecommons.org/licenses/by/4.0/"
     official_host_allowlist: tuple[str, ...] = ("www.dndbeyond.com", "media.dndbeyond.com")
