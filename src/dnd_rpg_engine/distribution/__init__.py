@@ -7,9 +7,11 @@ from dnd_rpg_engine.distribution.packages import (
     SemanticVersion,
     VersionConstraint,
 )
+from dnd_rpg_engine.distribution.service import ContentDistributionService
 
 __all__ = [
     "ContentDistributionIndex",
+    "ContentDistributionService",
     "DependencyResolution",
     "HMACPackageSigner",
     "PackageRelease",
