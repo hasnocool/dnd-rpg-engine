@@ -34,10 +34,14 @@ def test_semver_constraints_and_deterministic_dependency_resolution() -> None:
             release("campaign", "3.0.0", dependencies=[DependencySpec(package_id="monsters", constraint="2.*")]),
         ]
     )
-    lock = DependencyResolver(repository).resolve({"campaign": "3.0.0"}, engine_version="2.5.0")
+    resolver = DependencyResolver(repository)
+    lock = resolver.resolve({"campaign": "3.0.0"}, engine_version="2.5.0")
+    repeated = resolver.resolve({"campaign": "3.0.0"}, engine_version="2.5.0")
     assert lock.packages["rules"].version == "1.1.0"
     assert lock.packages["monsters"].version == "2.0.0"
-    assert lock.canonical_lines() == sorted(lock.canonical_lines()[1:]) if False else lock.canonical_lines()
+    assert lock.canonical_lines() == repeated.canonical_lines()
+    assert lock.canonical_lines()[0] == "engine=2.5.0"
+    assert lock.canonical_lines()[1:] == sorted(lock.canonical_lines()[1:])
 
 
 def test_conflicts_fail_and_upgrade_plan_requires_declared_migration() -> None:
