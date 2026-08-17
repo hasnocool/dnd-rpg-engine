@@ -2,7 +2,7 @@
 
 A headless, deterministic fantasy RPG simulation platform that can power **turn-based, timed-turn, real-time, real-time-with-pause, hybrid, text, TUI, browser, 2D, 3D, and multiplayer games** from the same authoritative world state.
 
-The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It now includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
+The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
 
 See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SRD-5.2.md).
 
@@ -22,6 +22,12 @@ The full v0.1 → v1.0 roadmap is represented as working modules and integration
 | v0.8 Multiplayer | authoritative per-campaign command serialization, parties, spectators, client ownership, live campaign hosting |
 | v0.9 Creator Platform | campaign templates, map/creature/rules JSON editors, pack validation, safe ZIP mod format, mod loader/SDK |
 | v1.0 RPG Platform | persisted hosted campaigns, community pack registry, marketplace metadata/install flow, packaged CLI/TUI/browser clients, public OpenAPI |
+
+## v2 playable platform
+
+The engine now includes a typed player-character runtime, legal action economy, spell slots/concentration, rests, advancement, campaign orchestration, AI director suggestions, portable character/campaign packages, reconnect/replay multiplayer state, Creator Studio project APIs, and a dedicated `/play` browser surface.
+
+Create an end-to-end SRD campaign with one API call via `POST /api/v2/playable-campaigns`, or assemble the same systems independently through the v1 APIs. See [`docs/PLAYABLE_PLATFORM.md`](docs/PLAYABLE_PLATFORM.md).
 
 ## Time is a first-class subsystem
 
@@ -89,11 +95,12 @@ Run the Textual client:
 rpg-engine-tui
 ```
 
-Inspect the bundled SRD source metadata or cache the exact official SRD 5.2.1 PDF locally:
+Inspect, fetch, and compile the licensed SRD 5.2.1 source into the offline catalog:
 
 ```bash
 rpg-engine srd-info
 rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.1.pdf
+rpg-engine compile-srd --pdf .cache/srd/SRD_CC_v5.2.1.pdf --output .cache/srd/srd_5_2_1.sqlite3
 ```
 
 ## Architecture

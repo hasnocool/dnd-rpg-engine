@@ -74,3 +74,15 @@
 - [x] marketplace metadata/install flow
 - [x] packaged CLI/TUI/browser/Godot clients
 - [x] public versioned engine API/OpenAPI
+
+
+## Post-1.0 platform milestones
+
+- **v1.3 Character Runtime** — implemented: character builder, advancement, resources, turn economy, rests, spellcasting state, legal-action API.
+- **v1.4 Campaign Runner** — implemented: party travel, living-world advancement, event-connected exploration/quests, catalog encounters, XP distribution.
+- **v1.5 AI GM Orchestration** — implemented: mutation-free director suggestions, encounter proposals, NPC intent, adaptation counters.
+- **v1.6 Player UX** — implemented: dedicated browser player/character sheet and authoritative action console.
+- **v1.7 Portability** — implemented: checksum-verified character/campaign export and import.
+- **v1.8 Multiplayer Continuity** — implemented: lobby state, reconnect, replay cursor, parties.
+- **v1.9 Creator Studio** — implemented: campaign/map/encounter/NPC/dialogue/quest/rule project editing model and validation APIs.
+- **v2.0 Playable Platform** — implemented: one-transaction playable campaign bootstrap integrating SRD rules, characters, party hosting and legal actions.

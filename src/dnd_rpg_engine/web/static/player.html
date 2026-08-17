@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RPG Engine Player</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<header>
+  <div><h1>Player</h1><p>SRD character sheet + authoritative action console</p></div>
+  <nav><a href="/">Dashboard</a><a href="/creator">Creator</a><a href="/docs">API</a></nav>
+</header>
+<main class="layout">
+  <section class="panel controls">
+    <h2>New playable campaign</h2>
+    <label>Campaign <input id="campaign" value="SRD Campaign" /></label>
+    <label>Character <input id="name" value="Adventurer" /></label>
+    <label>Class <select id="class-id"></select></label>
+    <label>Species <select id="species-id"></select></label>
+    <label>Background <select id="background-id"></select></label>
+    <button id="create">Create & play</button>
+    <div id="ids" class="mono small">No campaign loaded.</div>
+    <h2>Turn</h2>
+    <div id="turn" class="mono small"></div>
+    <div class="button-grid">
+      <button data-command="end_turn" disabled>End turn</button>
+      <button data-command="wait" disabled>Wait</button>
+    </div>
+    <h2>Recovery</h2>
+    <div class="button-grid">
+      <button id="short-rest" disabled>Short rest</button>
+      <button id="long-rest" disabled>Long rest</button>
+    </div>
+  </section>
+  <section class="panel state-panel">
+    <div class="panel-heading"><h2>Character sheet</h2><button id="refresh" disabled>Refresh</button></div>
+    <pre id="sheet" class="mono small"></pre>
+    <h2>Legal actions</h2>
+    <div id="actions" class="cards"></div>
+  </section>
+  <section class="panel event-panel">
+    <h2>Events</h2>
+    <div id="events" class="event-log mono"></div>
+  </section>
+</main>
+<script type="module" src="/static/player.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+name: Finalize v2 source
+
+on:
+  push:
+    branches:
+      - agent/playable-platform-v2
+
+permissions:
+  contents: write
+
+jobs:
+  reconstruct:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct verified integration files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d .publish_chunks
+          cat .publish_chunks/engine.*.b64 | base64 -d | gzip -d > src/dnd_rpg_engine/core/engine.py
+          cat .publish_chunks/app.*.b64 | base64 -d | gzip -d > src/dnd_rpg_engine/api/app.py
+
+          engine_sha="$(git hash-object src/dnd_rpg_engine/core/engine.py)"
+          app_sha="$(git hash-object src/dnd_rpg_engine/api/app.py)"
+          test "$engine_sha" = "e2106c9378d543ae878989c9191f320e4d45724e"
+          test "$app_sha" = "4ef5e020e01f32e246bf199e47f0152949867ee7"
+
+          python -m compileall -q src
+          git diff --check
+
+          rm -rf .publish_chunks
+          rm -f .github/workflows/reconstruct-v2.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Finalize playable platform integration"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

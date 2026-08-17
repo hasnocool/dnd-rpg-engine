@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from dnd_rpg_engine.core.engine import GameEngine
+if TYPE_CHECKING:
+    from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.models import ControllerKind, Entity, EntityKind, Position, ResourcePool, Stats
 from dnd_rpg_engine.rulesets.srd_5_2_1.catalog_store import SRDCatalogStore
 from dnd_rpg_engine.rulesets.srd_5_2_1.extended_models import CatalogSection, EncounterCandidate, MonsterCatalogEntry, SpellCatalogEntry
@@ -21,7 +23,7 @@ class SRDRuntimeCatalog:
     async def initialize(self) -> None:
         await self.store.initialize()
 
-    async def install_simple_spells(self, engine: GameEngine) -> int:
+    async def install_simple_spells(self, engine: "GameEngine") -> int:
         """Register mechanically simple compiled spells in the existing combat registry.
 
         Complex SRD spells remain queryable in the catalog rather than being

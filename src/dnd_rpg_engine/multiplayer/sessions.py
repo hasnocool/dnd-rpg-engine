@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from dnd_rpg_engine.core.commands import GameCommand
@@ -20,6 +21,16 @@ class Party:
     member_user_ids: set[str] = field(default_factory=set)
 
 
+@dataclass(slots=True)
+class ConnectionState:
+    client_id: str
+    user_id: str
+    connected: bool = True
+    last_seen_sequence: int = 0
+    connected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    disconnected_at: str | None = None
+
+
 class CampaignSession:
     """Serializes authoritative commands per campaign while allowing concurrent clients."""
 
@@ -29,6 +40,8 @@ class CampaignSession:
         self.owner_id = owner_id
         self.clients: dict[str, ClientIdentity] = {}
         self.parties: dict[str, Party] = {}
+        self.connections: dict[str, ConnectionState] = {}
+        self.lobby_open: bool = True
         self._command_lock = asyncio.Lock()
 
     def join(self, identity: ClientIdentity) -> None:
@@ -49,6 +62,7 @@ class CampaignSession:
             if identity.role is ClientRole.PLAYER and not identity.actor_ids:
                 identity.actor_ids = owned_actor_ids
         self.clients[identity.client_id] = identity
+        self.connections[identity.client_id] = ConnectionState(client_id=identity.client_id, user_id=identity.user_id)
 
     def require_client(self, client_id: str) -> ClientIdentity:
         try:
@@ -63,7 +77,44 @@ class CampaignSession:
         return identity
 
     def leave(self, client_id: str) -> None:
-        self.clients.pop(client_id, None)
+        connection = self.connections.get(client_id)
+        if connection is not None:
+            connection.connected = False
+            connection.disconnected_at = datetime.now(timezone.utc).isoformat()
+
+    def reconnect(self, client_id: str, user_id: str) -> ClientIdentity:
+        identity = self.require_client(client_id)
+        if identity.user_id != user_id:
+            raise PermissionError("reconnect user does not match client identity")
+        connection = self.connections.setdefault(client_id, ConnectionState(client_id=client_id, user_id=user_id))
+        connection.connected = True
+        connection.disconnected_at = None
+        return identity
+
+    async def replay(self, client_id: str, *, after_sequence: int | None = None, limit: int = 500):
+        identity = self.require_client(client_id)
+        connection = self.connections.setdefault(client_id, ConnectionState(client_id=client_id, user_id=identity.user_id))
+        cursor = connection.last_seen_sequence if after_sequence is None else after_sequence
+        if self.engine.store is None:
+            events = [event for event in self.engine._recent_events if event.sequence > cursor][:limit]
+        else:
+            events = await self.engine.store.list_events(self.campaign_id, after_sequence=cursor, limit=limit)
+        if events:
+            connection.last_seen_sequence = events[-1].sequence
+        return events
+
+    def lobby_snapshot(self) -> dict[str, object]:
+        return {
+            "campaign_id": self.campaign_id,
+            "open": self.lobby_open,
+            "clients": [identity.model_dump(mode="json") for identity in self.clients.values()],
+            "connections": {key: vars(value) if hasattr(value, "__dict__") else {
+                "client_id": value.client_id, "user_id": value.user_id, "connected": value.connected,
+                "last_seen_sequence": value.last_seen_sequence, "connected_at": value.connected_at,
+                "disconnected_at": value.disconnected_at,
+            } for key, value in self.connections.items()},
+            "parties": {party_id: {"id": party.id, "name": party.name, "actor_ids": sorted(party.actor_ids), "member_user_ids": sorted(party.member_user_ids)} for party_id, party in self.parties.items()},
+        }
 
     def can_control(self, client_id: str, actor_id: str) -> bool:
         identity = self.clients.get(client_id)

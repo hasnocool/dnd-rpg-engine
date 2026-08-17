@@ -70,3 +70,69 @@ class InstantiatePackRequest(BaseModel):
     pack: dict[str, Any]
     campaign_template_id: str
     owner_id: str = "local"
+
+from dnd_rpg_engine.characters.models import CharacterBuildRequest
+
+
+class LevelUpRequest(BaseModel):
+    target_level: int | None = Field(default=None, ge=2, le=20)
+    reason: str = "milestone"
+
+
+class AwardXPRequest(BaseModel):
+    amount: int = Field(ge=0)
+
+
+class ConfigurePartyRequest(BaseModel):
+    actor_ids: set[str] = Field(min_length=1)
+    map_id: str | None = None
+    node_id: str | None = None
+
+
+class TravelRequest(BaseModel):
+    actor_id: str
+    map_id: str
+    destination_node_id: str
+    pace: str = Field(default="normal", pattern="^(slow|normal|fast)$")
+
+
+class BudgetedEncounterRequest(BaseModel):
+    party_levels: list[int] = Field(min_length=1)
+    difficulty: str = Field(default="moderate", pattern="^(low|moderate|high)$")
+    query: str = ""
+
+
+class CampaignExportRequest(BaseModel):
+    include_events: bool = False
+
+
+class ReactionWindowRequest(BaseModel):
+    trigger_event_id: str
+    eligible_actor_ids: set[str] = Field(min_length=1)
+    allowed_reactions: set[str] = Field(default_factory=set)
+    timeout_seconds: float | None = Field(default=None, ge=0, le=60)
+
+class ReconnectRequest(BaseModel):
+    client_id: str
+    user_id: str
+
+
+class CreatePartyRequest(BaseModel):
+    party_id: str
+    name: str
+    actor_ids: set[str] = Field(default_factory=set)
+    member_user_ids: set[str] = Field(default_factory=set)
+
+
+class ImportCampaignRequest(BaseModel):
+    package: dict[str, Any]
+    owner_id: str = "local"
+    regenerate_id: bool = True
+
+
+class PlayableCampaignRequest(BaseModel):
+    campaign_name: str = "New SRD Campaign"
+    owner_id: str = "local"
+    seed: int = 1
+    time_mode: TimeMode = TimeMode.TURN_BASED
+    character: CharacterBuildRequest
