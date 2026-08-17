@@ -1,6 +1,6 @@
 # dnd-rpg-engine
 
-A headless, deterministic fantasy RPG simulation platform that can power **turn-based, timed-turn, real-time, real-time-with-pause, hybrid, text, TUI, browser, 2D, 3D, and multiplayer games** from the same authoritative world state.
+A headless, deterministic fantasy RPG application platform that can power **turn-based, timed-turn, real-time, real-time-with-pause, hybrid, text, TUI, browser, 2D, 3D, multiplayer, and distributed-world games** from the same authoritative simulation model.
 
 The repository intentionally separates rules/simulation from presentation. The generic engine does **not** bundle proprietary rulebooks or setting material. It includes an **opt-in SRD 5.2.1 rules foundation** built from the Creative-Commons System Reference Document: structured mechanics and provenance are bundled, while long-form source prose remains in the official SRD. Content outside the SRD remains out of scope unless separately licensed.
 
@@ -8,7 +8,7 @@ See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SR
 
 ## What is implemented
 
-The v0.1 → v1.8 roadmap is represented as working modules and integration points:
+The v0.1 → v2.5 roadmap is represented as working modules, APIs, tests, and integration points:
 
 | Milestone | Implemented |
 | --- | --- |
@@ -28,8 +28,37 @@ The v0.1 → v1.8 roadmap is represented as working modules and integration poin
 | v1.4 Spatial Authority | graph/grid/continuous spaces, occupancy, collision, terrain, A*/Dijkstra, LOS, cover |
 | v1.5 Intelligent Actors | perception, goals, utility AI, behavior-tree primitives, tactical planning, schedules, persistent memories |
 | v1.6 Character Lifecycle | character builder, multiclass-compatible progression, XP/milestones, resources, rests, equipment, SRD adapter |
-| v1.7 Production Hosting | PostgreSQL, migrations, simulation workers, leases, rendezvous routing, reconnect/resume, missed-event replay |
+| v1.7 Production Hosting | PostgreSQL, migrations, simulation workers, campaign leases, rendezvous routing, reconnect/resume, missed-event replay |
 | v1.8 Creator Studio | persistent typed projects, revision history, visual SVG maps, structured editors, validation/export/publish |
+| v1.9 Identity + Multi-Tenancy | signed sessions, organizations/workspaces, RBAC, campaign/project ownership, actor authorization, audit records |
+| v2.0 Distributed Worlds | zone partitions, rendezvous placement, PostgreSQL zone leases, two-phase verified entity handoff |
+| v2.1 Content Package Graph | semver constraints, dependencies, deterministic lockfiles, compatibility checks, migration/upgrade planning |
+| v2.2 Simulation Lab | deterministic batch simulations, balance metrics/findings, variant comparisons, rules-backed campaign duels |
+| v2.3 Reliable Multiplayer | command sequences/acks, retry idempotency, rate limits, presence, subscriptions, reliable authenticated WebSocket |
+| v2.4 Campaign Director | persistent story/tension planner, structured proposals, governed command approval through normal authority paths |
+| v2.5 Client SDKs | Python async SDK, TypeScript fetch/WebSocket SDK, Godot reliable client helper, end-to-end platform integration |
+
+## Core authority model
+
+Presentation, AI, creator tools, and clients do not own game truth:
+
+```text
+Browser / Godot / Python / TypeScript / TUI / CLI
+                         │
+                 authenticated commands
+                         ▼
+              campaign authorization
+                         ▼
+                 CampaignSession
+                         ▼
+                 RulesRuntime
+                         ▼
+              authoritative events
+                         ▼
+             deterministic state
+```
+
+The Campaign Director follows the same rule: it proposes intent; approved commands still pass through the authenticated campaign session and normal rules engine.
 
 ## Time is a first-class subsystem
 
@@ -43,20 +72,7 @@ Supported modes:
 - `real_time_with_pause` — a bounded decision pause is granted when a player becomes ready.
 - `hybrid` — real-time world simulation with bounded tactical decision pauses.
 
-This means the same scheduler handles actor readiness, delayed actions, spell completion, conditions, world events, NPC schedules, and idle pressure.
-
-```json
-{
-  "time_mode": "hybrid",
-  "ticks_per_second": 20,
-  "time_scale": 1.0,
-  "player_decision_timeout_seconds": 10.0,
-  "pause_when_player_ready": true,
-  "enemies_continue_while_player_idle": true
-}
-```
-
-In timed/live modes, a human can remain ready without acting. After any configured pause expires, AI readiness tasks continue to resolve and repeat according to their action time. Strict `turn_based` is the only mode where wall-clock time does not advance the simulation.
+The same scheduler handles actor readiness, delayed actions, spell completion, effects, conditions, world events, NPC schedules, and idle pressure.
 
 ## Quick start
 
@@ -69,7 +85,7 @@ pip install -e '.[all,dev]'
 pytest
 ```
 
-Run the complete local platform:
+Run the complete local platform in compatibility mode:
 
 ```bash
 rpg-engine serve --host 127.0.0.1 --port 8000
@@ -77,160 +93,222 @@ rpg-engine serve --host 127.0.0.1 --port 8000
 
 Then open:
 
-- `http://127.0.0.1:8000/` — browser game client;
+- `http://127.0.0.1:8000/` — browser client;
 - `/creator` — visual Creator Studio;
 - `/docs` — OpenAPI.
 
-`rpg-engine serve` uses `AdvancedGameEngine` by default and accepts either a local SQLite path or a PostgreSQL URL through `--database`.
-
-Run a timeline demo:
+Run other packaged clients/tools:
 
 ```bash
 rpg-engine demo --mode hybrid --seconds 20 --timeout 5
-rpg-engine demo --mode real-time --seconds 20
-rpg-engine demo --mode turn-based
-```
-
-Run the text client:
-
-```bash
 rpg-engine play --mode hybrid --timeout 10
-```
-
-Run the Textual client:
-
-```bash
 rpg-engine-tui
-```
-
-Inspect the bundled SRD source metadata or cache the exact official SRD 5.2.1 PDF locally:
-
-```bash
 rpg-engine srd-info
-rpg-engine fetch-srd --output .cache/srd/SRD_CC_v5.2.1.pdf
 ```
 
-## Production hosting
+## Authenticated production mode
 
-Install the PostgreSQL extra if you did not install `all`:
+Install the production hosting extra if needed:
 
 ```bash
 pip install -e '.[hosting]'
 ```
 
-Start the platform against PostgreSQL:
+Use PostgreSQL plus separate high-entropy authentication/provisioning secrets:
 
 ```bash
-RPG_DATABASE_URL='postgresql://user:pass@db.example/rpg' rpg-engine-host
+export RPG_DATABASE_URL='postgresql://user:pass@db.example/rpg'
+export RPG_AUTH_REQUIRED=1
+export RPG_AUTH_SECRET='<random 32+ byte signing secret from a secret manager>'
+export RPG_BOOTSTRAP_KEY='<separate random server-side provisioning secret>'
+
+rpg-engine-host
 ```
 
-Start simulation workers against the same database:
+The values above are placeholders. Do not commit real credentials or expose the bootstrap key to browser/game clients. Public deployments should terminate HTTPS/WSS at a trusted ingress or reverse proxy.
+
+Authenticated mode changes the trust model:
+
+- users authenticate to persistent server sessions;
+- effective roles remain server-side, so membership changes are immediate;
+- campaign clients are bound to the same bearer session that created/joined them;
+- callers cannot choose campaign ownership by submitting an `owner_id`;
+- legacy caller-asserted create/join/command/publish mutations are disabled;
+- the legacy unauthenticated campaign WebSocket is removed;
+- the reliable authenticated transport becomes the multiplayer command path.
+
+See [`SECURITY.md`](SECURITY.md).
+
+## Secure campaign example
+
+Controlled provisioning:
 
 ```bash
-RPG_DATABASE_URL='postgresql://user:pass@db.example/rpg' \
+curl -X POST http://127.0.0.1:8000/api/v1/auth/bootstrap \
+  -H 'content-type: application/json' \
+  -H 'X-RPG-Bootstrap-Key: <server-side bootstrap key>' \
+  -d '{"user_id":"local-user","display_name":"Local User"}'
+```
+
+Use the returned bearer token to create an authenticated campaign:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/secure/campaigns \
+  -H 'content-type: application/json' \
+  -H 'Authorization: Bearer <access token>' \
+  -d '{"name":"My Campaign","seed":42,"time_mode":"hybrid"}'
+```
+
+Reliable commands use:
+
+```text
+POST /api/v1/reliable/campaigns/{campaign_id}/commands
+WS   /api/v1/reliable/campaigns/{campaign_id}/ws
+```
+
+Each campaign client has an exact monotonically increasing command sequence. Retrying the same sequence with the same command returns the previous acknowledgement without re-executing the command.
+
+## Production workers and distributed worlds
+
+Start whole-campaign workers against PostgreSQL:
+
+```bash
+RPG_DATABASE_URL="$RPG_DATABASE_URL" \
 RPG_WORKER_CAPACITY=32 \
 rpg-engine-worker
 ```
 
-Workers use stable rendezvous hashing for preferred campaign placement and PostgreSQL leases as the authoritative single-owner guard. Reconnect tickets are opaque, stored only by hash, rotate on successful resume, and carry an event checkpoint so clients can replay what they missed.
+v2.0 adds finer-grained world zones:
+
+```text
+World
+├─ west-wilderness → worker A
+├─ east-wilderness → worker B
+├─ capital         → worker C
+└─ dungeon         → worker D
+```
+
+Rendezvous hashing selects preferred placement, while **PostgreSQL zone leases** are the authoritative single-writer guard. Cross-zone entities move through hash-verified two-phase handoffs. SQLite's lease fallback is process-local and intended for development/testing, not multi-host ownership coordination.
+
+Distributed APIs live under `/api/v1/distributed`.
+
+## Content packages and reproducible campaigns
+
+v2.1 adds a deterministic package graph:
+
+```text
+campaign.lock
+engine=2.5.0
+campaign==3.0.0#<content hash>
+monsters==2.0.0#<content hash>
+rules==1.1.0#<content hash>
+```
+
+The resolver supports semantic-version constraints, dependency conflict detection, engine compatibility, content hashes, and migration-aware upgrade planning.
+
+Package APIs live under `/api/v1/packages`.
+
+## Simulation Lab
+
+The deterministic engine can run large batches without mutating the live campaign. Reports include win rates, median/p95 durations, knockout rate, resource utilization, custom metric means, findings, and a deterministic digest.
+
+The campaign duel endpoint clones two live actor snapshots and resolves combat through the normal `CombatSystem` and active rules:
+
+```text
+POST /api/v1/simulation/campaigns/{campaign_id}/duel
+```
+
+## Campaign Director
+
+The persistent Director observes authoritative events and tracks tension, open story threads, scene repetition, and faction pressure. It emits structured proposals such as advancing a thread, introducing pressure, adding a social/recovery beat, or applying a faction consequence.
+
+```text
+Events → Director → Proposal → approval → CampaignSession → RulesRuntime → Events
+```
+
+External AI/provider context excludes writable engine/service objects. Candidate commands are parsed before they can be attached to proposals.
+
+Director APIs live under `/api/v1/director`.
+
+## Creator Studio and multi-tenancy
+
+The browser Creator Studio at `/creator` edits the same typed `ContentPack` models used at runtime. It includes persistent revision history, a draggable SVG map editor, structured creature/spell/quest/rules/campaign forms, validation, export, and publishing.
+
+In authenticated mode, Studio projects have explicit owner/organization/workspace ancestry and exact read/write/publish permissions. A user cannot take ownership of a legacy project simply by knowing its ID.
+
+Studio APIs live under `/api/v1/studio`.
+
+## Client SDKs
+
+### Python
+
+```python
+from dnd_rpg_engine import RPGClient
+
+client = RPGClient()
+await client.bootstrap(
+    user_id="local-user",
+    display_name="Local User",
+    bootstrap_key=bootstrap_key,
+)
+campaign = await client.create_campaign("Example", seed=42)
+await client.command(
+    campaign.campaign_id,
+    {"type": "wait", "actor_id": "hero"},
+)
+```
+
+### TypeScript
+
+See `sdk/typescript/`. It contains a buildable package with fetch-based authenticated APIs and a reliable WebSocket helper.
+
+### Godot
+
+`adapters/godot/common/RPGClient.gd` provides a thin reliable WebSocket client with command-ack and game-event signals. Godot owns rendering/input; the server owns game truth.
 
 ## Architecture
 
 ```text
-CLI / TUI / Browser / Creator Studio / Godot / remote clients
-                              │
-                      commands / events
-                              │
-                    AdvancedGameEngine
-                              │
-      ┌───────────────┬───────┼───────────────┬────────────────┐
-      │               │       │               │                │
- RulesRuntime   Character   Spatial      Intelligent        Living
- + effects      lifecycle   authority      actors            world
-      │               │       │               │                │
-      └───────────────┴───────┴───────────────┴────────────────┘
-                              │
-                    deterministic state
-                              │
-                event journal / snapshots
-                              │
-                  persistence contract
-                    ┌─────────┴─────────┐
-                    ▼                   ▼
-                 SQLite            PostgreSQL
-               local/dev       production/shared
-                                        │
-                              workers + leases + resume
+              Browser / Godot / Python / TypeScript
+                            │ HTTPS/WSS
+                            ▼
+                   Platform API / RBAC
+                            │
+       ┌────────────────────┼────────────────────┐
+       │                    │                    │
+ reliable multiplayer   Creator Studio     Campaign Director
+       │                    │                    │
+       └─────────────── CampaignSession ─────────┘
+                            │
+                       RulesRuntime
+                            │
+      ┌─────────────────────┼──────────────────────┐
+      │                     │                      │
+ character lifecycle   spatial authority   intelligent actors
+      │                     │                      │
+      └──────────────── deterministic state ──────┘
+                            │
+                    events / event sourcing
+                            │
+                    persistence contract
+                  ┌─────────┴──────────┐
+                  ▼                    ▼
+               SQLite             PostgreSQL
+             local/dev       production/shared
+                                      │
+                     campaign leases + zone leases
+                                      │
+                           distributed workers
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/TIMING.md`](docs/TIMING.md), [`docs/RUNTIME_1_2_TO_1_5.md`](docs/RUNTIME_1_2_TO_1_5.md), and [`docs/RUNTIME_1_6_TO_1_8.md`](docs/RUNTIME_1_6_TO_1_8.md).
+Detailed architecture:
 
-## Public API examples
-
-Create a campaign:
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/campaigns \
-  -H 'content-type: application/json' \
-  -d '{"name":"My Campaign","owner_id":"local","seed":42,"time_mode":"hybrid","player_decision_timeout_seconds":10}'
-```
-
-Change timing at runtime:
-
-```bash
-curl -X PATCH http://127.0.0.1:8000/api/v1/campaigns/CAMPAIGN_ID/timing \
-  -H 'content-type: application/json' \
-  -H 'X-RPG-Client-ID: OWNER_CLIENT_ID' \
-  -d '{"time_mode":"real_time","pause_when_player_ready":false}'
-```
-
-WebSocket clients connect to:
-
-```text
-ws://127.0.0.1:8000/api/v1/campaigns/{campaign_id}/ws
-```
-
-Clients send commands and consume events; they never calculate authoritative outcomes locally.
-
-Character lifecycle endpoints live below:
-
-```text
-/api/v1/campaigns/{campaign_id}/characters
-```
-
-Reconnect and hosting status endpoints are exposed through the same stable `/api/v1` namespace.
-
-## Creator Studio / mod SDK
-
-A `ContentPack` contains a manifest plus optional campaign templates, creature templates, actions, conditions, items, spells, maps, dialogues, quests, rules, and asset bindings. The SDK validates cross-references, computes a deterministic SHA-256 content hash, and exports/imports a bounded ZIP format with path traversal checks.
-
-The browser Creator Studio at `/creator` now edits the actual typed `ContentPack` models instead of maintaining a separate raw-JSON-only format. It includes:
-
-- persistent Studio projects;
-- revision snapshots and restore;
-- a draggable SVG world-map graph editor;
-- structured creature, spell, quest, rules, and campaign forms;
-- validation through the runtime `ContentValidator`;
-- validated export;
-- marketplace publication.
-
-Studio APIs live under `/api/v1/studio`.
-
-## Godot
-
-The adapters target the current stable Godot 4.7 line and are deliberately thin:
-
-```text
-adapters/godot2d/
-adapters/godot3d/
-adapters/bindings/
-```
-
-Godot owns rendering, animation, camera, audio, and local input. The Python server owns truth: timing, AI, checks, effects, state, character advancement, and persistence.
-
-## AI Game Master boundary
-
-The narrator consumes authoritative events and memory context. Narration cannot directly mutate world state. Procedural encounter/quest generators return structured engine data; external model providers can be implemented behind the `NarrativeProvider` protocol without giving them write access to simulation internals.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/TIMING.md`](docs/TIMING.md)
+- [`docs/RUNTIME_1_2_TO_1_5.md`](docs/RUNTIME_1_2_TO_1_5.md)
+- [`docs/RUNTIME_1_6_TO_1_8.md`](docs/RUNTIME_1_6_TO_1_8.md)
+- [`docs/RUNTIME_1_9_TO_2_5.md`](docs/RUNTIME_1_9_TO_2_5.md)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Development
 
@@ -241,7 +319,7 @@ make demo
 make serve
 ```
 
-CI tests Python 3.12, 3.13, and 3.14, compiles the package, and runs the full test suite.
+CI compiles the package and runs the full suite on Python 3.12, 3.13, and 3.14.
 
 ## License
 
