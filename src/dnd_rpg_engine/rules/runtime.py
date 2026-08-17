@@ -184,13 +184,7 @@ def create_runtime(rules: RuleSet, dice: DeterministicDice, conditions: Conditio
 
 
 class RulesRuntime:
-    """Typed, deterministic rules execution boundary used by authoritative systems.
-
-    The core engine supplies entities, commands, timing, and persistence. A
-    RulesRuntime owns rules interpretation: modifiers, roll modes, damage traits,
-    effect hooks, reactions, and action economy. Rulesets can subclass this class
-    and register a factory without changing the engine or presentation layers.
-    """
+    """Typed deterministic rules boundary for authoritative systems."""
 
     capabilities: frozenset[RuleCapability] = frozenset(
         {
@@ -370,7 +364,11 @@ class RulesRuntime:
         )
 
     def resolve_roll(self, request: RollRequest, modifiers: list[Modifier] | None = None) -> RollOutcome:
-        relevant = [modifier for modifier in modifiers or [] if modifier.target in {"roll", "attack_roll", "check_roll", "save_roll"}]
+        relevant = [
+            modifier
+            for modifier in modifiers or []
+            if modifier.target in {"roll", "attack_roll", "check_roll", "save_roll"}
+        ]
         relevant.extend(
             self.effects.modifiers_for(
                 request.context.actor_id,
@@ -444,9 +442,7 @@ class RulesRuntime:
                         value=definition.armor_modifier,
                     )
                 )
-        modifiers.extend(
-            self.effects.modifiers_for(target.id, EffectTrigger.BEFORE_ROLL, target="defense")
-        )
+        modifiers.extend(self.effects.modifiers_for(target.id, EffectTrigger.BEFORE_ROLL, target="defense"))
         return int(self._resolve_modifier_trace(base, modifiers).final)
 
     def resolve_damage(self, target: Entity, packet: DamagePacket) -> DamageOutcome:
@@ -504,6 +500,7 @@ class RulesRuntime:
         attacker_conditions = list(active_conditions or [])
         defender_conditions = list(target_conditions or [])
         modifiers = self._condition_roll_modifiers(attacker_conditions, defender_conditions)
+        defense = self.defense(target, defender_conditions)
         context = ResolutionContext(
             actor_id=attacker.id,
             target_id=target.id,
@@ -515,7 +512,7 @@ class RulesRuntime:
                 expression="1d20",
                 stream=f"combat:attack:{attacker.id}",
                 base_modifier=attacker.stats.modifier(action.attack_ability) + self.action_proficiency_bonus(attacker, action),
-                target=self.defense(target, defender_conditions),
+                target=defense,
                 context=context,
             ),
             modifiers,
@@ -539,7 +536,7 @@ class RulesRuntime:
             raw_rolls=roll.raw_rolls,
             modifier=roll.modifier,
             total=roll.total,
-            defense=int(roll.trace.base if roll.target if False else self.defense(target, defender_conditions)),
+            defense=defense,
             hit=hit,
             damage=damage,
             critical=critical,
