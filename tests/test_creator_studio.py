@@ -1,4 +1,3 @@
-# tests/test_creator_studio.py
 from __future__ import annotations
 
 import pytest
@@ -52,7 +51,20 @@ async def test_creator_studio_typed_editing_revision_and_export(tmp_path) -> Non
         project.id,
         "rules",
         "campaign_rules",
-        {"name": "Campaign Rules", "settings": {"round_seconds": 6}},
+        {
+            "name": "Campaign Rules",
+            "settings": {"round_seconds": 6},
+            "graph": {
+                "entry": "mark",
+                "nodes": {
+                    "mark": {
+                        "id": "mark",
+                        "op": "set",
+                        "args": {"path": "state.flags.studio_rule", "value": True},
+                    }
+                },
+            },
+        },
     )
     project = await studio.upsert(
         project.id,
@@ -72,6 +84,7 @@ async def test_creator_studio_typed_editing_revision_and_export(tmp_path) -> Non
     assert exported.maps["overworld"].nodes["ruins"].x == 400
     assert exported.maps["overworld"].edges[0].travel_time == 2.5
     assert exported.creatures["wolf"].hp == 11
+    assert exported.rules["campaign_rules"].graph["entry"] == "mark"
 
     current_revision = project.revision
     await studio.delete(project.id, "creatures", "wolf")
@@ -80,13 +93,14 @@ async def test_creator_studio_typed_editing_revision_and_export(tmp_path) -> Non
     assert restored.revision > current_revision
 
 
-def test_platform_app_exposes_v18_health_and_studio(tmp_path) -> None:
+def test_platform_app_exposes_v3_health_studio_and_rule_compiler(tmp_path) -> None:
     app = create_platform_app(str(tmp_path / "platform.sqlite3"), advanced=True)
     with TestClient(app) as client:
         health = client.get("/health")
         assert health.status_code == 200
-        assert health.json()["version"] == "1.8.0"
+        assert health.json()["version"] == "3.0.0"
         assert health.json()["engine_profile"] == "advanced"
+        assert health.json()["platform_profile"] == "world"
 
         created = client.post(
             "/api/v1/studio/projects",
@@ -103,6 +117,28 @@ def test_platform_app_exposes_v18_health_and_studio(tmp_path) -> None:
         )
         assert created.status_code == 200
         project_id = created.json()["id"]
+        rule = client.put(
+            f"/api/v1/studio/projects/{project_id}/rules/example",
+            json={
+                "payload": {
+                    "name": "Example",
+                    "graph": {
+                        "entry": "stop",
+                        "nodes": {"stop": {"id": "stop", "op": "stop", "args": {}}},
+                    },
+                }
+            },
+        )
+        assert rule.status_code == 200
+        compiled = client.post(
+            f"/api/v1/studio/projects/{project_id}/rules/example/compile",
+            json={"save": False},
+        )
+        assert compiled.status_code == 200
+        assert compiled.json()["valid"] is True
+        assert compiled.json()["node_count"] == 1
+        assert len(compiled.json()["graph_hash"]) == 64
+
         fetched = client.get(f"/api/v1/studio/projects/{project_id}")
         assert fetched.status_code == 200
         assert fetched.json()["pack"]["manifest"]["id"] == "web.project"

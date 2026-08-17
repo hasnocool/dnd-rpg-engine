@@ -1,6 +1,6 @@
-# src/dnd_rpg_engine/ai/__init__.py
-"""AI game-master, NPC decision support, perception, planning, and memory."""
+"""AI game-master, actor intelligence, campaign direction, perception, planning, and memory."""
 
+from dnd_rpg_engine.ai.director import AIDirector, DirectorProposal, DirectorProposalKind, DirectorSnapshot
 from dnd_rpg_engine.ai.intelligence import (
     ActionCandidate,
     ActionNode,
@@ -21,11 +21,15 @@ from dnd_rpg_engine.ai.intelligence import (
 )
 
 __all__ = [
+    "AIDirector",
     "ActionCandidate",
     "ActionNode",
     "BehaviorContext",
     "BehaviorStatus",
     "ConditionNode",
+    "DirectorProposal",
+    "DirectorProposalKind",
+    "DirectorSnapshot",
     "Goal",
     "GoalKind",
     "IntelligentActorController",

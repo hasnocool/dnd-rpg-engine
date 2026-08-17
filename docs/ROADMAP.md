@@ -165,3 +165,89 @@
 - [x] validated export and marketplace publishing
 - [x] v1.8 platform application factory and health/version reporting
 - [x] main `rpg-engine serve` command launches the complete Studio-capable platform
+
+## v1.9 Executable Content Compiler + Rules Graph — complete
+- [x] bounded declarative executable-rule intermediate representation
+- [x] deterministic `RuleCompiler` with node/effect budgets and cross-reference validation
+- [x] canonical SHA-256 compiled graph hashes and provenance metadata
+- [x] roll, damage, healing, resource, effect, reaction, condition-flow, state, emit, and stop operations
+- [x] allowlisted state mutation paths; no `eval`, `exec`, Python, Lua, or arbitrary scripts
+- [x] deterministic execution-step budget and graph-hash verification
+- [x] RulesRuntime-backed execution and explainable per-node traces
+- [x] `RuleDocument.graph` content-pack/ZIP/hash integration
+- [x] authoritative `rule.execute` command integration in `WorldPlatformEngine`
+- [x] Creator Studio compiler-validation endpoint
+- [x] visual executable rule-graph editor with nodes, branches, arguments, entry point, capabilities, and compile/save feedback
+
+## v2.0 Campaign Orchestrator — complete
+- [x] typed exploration/encounter/dialogue/travel/downtime/settlement/dungeon/custom scenes
+- [x] authoritative unloaded/loading/active/suspended/resolved/archived lifecycle
+- [x] validated scene transitions and exclusive scene activation
+- [x] scene state persisted into campaign metadata
+- [x] active-scene and preload-driven entity streaming sets
+- [x] next-scene candidates and streamed-state projections
+- [x] scene registration/transition REST APIs
+
+## v2.1 Simulation Lab — complete
+- [x] deterministic seed matrices
+- [x] bounded concurrent scenario execution
+- [x] sample/outcome/event-count capture
+- [x] mean/median/stdev/min/max/p10/p90 metric summaries
+- [x] outcome rates and report comparison deltas
+- [x] retained or aggregate-only run modes
+- [x] regression tests proving stable aggregation
+
+## v2.2 Advanced AI Director — complete
+- [x] campaign-scale observation snapshot
+- [x] deterministic ranked pacing/encounter/quest/faction/world/downtime proposals
+- [x] explainable utility/reason output
+- [x] resource- and pressure-aware recovery/decompression behavior
+- [x] faction/world background motion proposals
+- [x] proposal-only authority boundary; director never directly mutates game truth
+- [x] owner-only director proposal API
+
+## v2.3 Perception + Knowledge Authority — complete
+- [x] per-actor known entities, observed-at timestamps, facts, confidence, sources, tags, and expiry
+- [x] perception ingestion into persistent actor components
+- [x] remembered entity snapshots rather than stale access to live hidden truth
+- [x] public-component filtering for observed non-self entities
+- [x] knowledge-scoped actor views
+- [x] owner-only omniscient runtime views
+- [x] player views limited to owned actors
+- [x] knowledge-scoped campaign GET/event history/WebSocket replacement for the v3 world profile
+- [x] spectator/public-shell behavior instead of omniscient state
+
+## v2.4 Visual Runtime SDK — complete
+- [x] deterministic full runtime snapshots
+- [x] KnowledgeView-derived redacted snapshots
+- [x] entity/scene/sprite/model/animation visual bindings
+- [x] hash-verified runtime deltas and client sync cursors
+- [x] deterministic add/replace/remove delta operations
+- [x] delta replay with base/target hash validation
+- [x] transport-neutral protocol suitable for browser, Godot, and remote clients
+
+## v2.5 Content Distribution Platform — complete
+- [x] semantic-version package metadata and version constraints
+- [x] dependency graph resolution and cycle detection
+- [x] engine-version compatibility checks
+- [x] deterministic topological install order
+- [x] package content hashes and dependency lock hashes
+- [x] signed release metadata with built-in HMAC-SHA256 private-registry signer interface
+- [x] upgrade planning
+- [x] persistent release and lock registry over SQLite/PostgreSQL JSON storage
+- [x] content distribution REST API
+- [x] Creator Studio publish-to-marketplace-and-distribution flow
+
+## v3.0 Massively Persistent Worlds — foundation complete
+- [x] world-shard registry with capacity/load/status/heartbeat state
+- [x] stable SHA-256 rendezvous routing with explicit region affinity
+- [x] shard expiration and deterministic region rebalance plans
+- [x] Lamport-ordered cross-shard messages with idempotency keys
+- [x] two-phase entity handoff: prepare → accept → commit/abort
+- [x] canonical entity-state hashes and exactly-once committed-transfer guard
+- [x] transfer payload verification and entity restoration
+- [x] persistent shard, region-assignment, transfer, and cross-shard-message records
+- [x] shared SQLite/PostgreSQL persistence contract for distributed metadata
+- [x] compatibility with production worker/campaign lease infrastructure from v1.7
+
+The v3.0 milestone establishes the deterministic persistence, routing, handoff, and authority primitives required to scale into multiple simulation processes. Production deployments can layer transport/service-discovery infrastructure around these interfaces without changing campaign, rules, or client contracts.
