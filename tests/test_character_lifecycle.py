@@ -13,7 +13,7 @@ from dnd_rpg_engine.characters.lifecycle import (
 from dnd_rpg_engine.core.advanced_engine import AdvancedGameEngine
 from dnd_rpg_engine.core.commands import CustomCommand
 from dnd_rpg_engine.core.models import GameConfig, TimeMode
-from dnd_rpg_engine.rulesets.srd_5_2_1 import build_srd_character_lifecycle
+from dnd_rpg_engine.rulesets.srd_5_2_1 import build_srd_character_lifecycle, entity_proficiency_bonus
 
 
 def test_character_build_level_rest_resources_and_equipment() -> None:
@@ -86,6 +86,12 @@ def test_srd_adapter_builds_all_catalog_classes() -> None:
     fighter = lifecycle.build_character(CharacterBuildRequest(name="Arden", class_id="fighter"))
     assert lifecycle.progress(fighter).classes == {"fighter": 1}
     assert fighter.resources.max_hp == 10
+
+    lifecycle.award_xp(fighter, 100_000)
+    for _ in range(4):
+        lifecycle.level_up(fighter, "fighter")
+    assert lifecycle.progress(fighter).total_level == 5
+    assert entity_proficiency_bonus(fighter) == 3
 
 
 @pytest.mark.asyncio
