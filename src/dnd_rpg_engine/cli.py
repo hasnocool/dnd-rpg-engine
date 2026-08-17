@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from dnd_rpg_engine.api.app import create_app
+from dnd_rpg_engine.api.platform import create_platform_app
 from dnd_rpg_engine.core.commands import AttackCommand, WaitCommand
 from dnd_rpg_engine.core.dice import DeterministicDice
 from dnd_rpg_engine.core.engine import GameEngine
@@ -245,18 +245,19 @@ def srd_encounter_budget(levels: str, difficulty: str = "moderate") -> None:
 def serve(
     host: str = "127.0.0.1",
     port: int = 8000,
-    database: Path = Path("rpg_engine.sqlite3"),
+    database: str = "rpg_engine.sqlite3",
     srd_catalog: Path | None = None,
+    advanced: bool = True,
 ) -> None:
-    """Start REST/WebSocket/browser server."""
+    """Start the complete REST/WebSocket/browser/Creator Studio platform server."""
     import uvicorn
 
-    uvicorn.run(create_app(str(database), None if srd_catalog is None else str(srd_catalog)), host=host, port=port)
+    uvicorn.run(create_platform_app(database, advanced=advanced), host=host, port=port)
 
 
 @app.command("show-state")
 def show_state(campaign_id: str, database: Path = Path("rpg_engine.sqlite3")) -> None:
-    """Print a stored campaign snapshot."""
+    """Print a stored SQLite campaign snapshot."""
     asyncio.run(_show_state(campaign_id, database))
 
 
