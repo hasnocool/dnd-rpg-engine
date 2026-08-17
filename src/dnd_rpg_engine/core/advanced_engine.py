@@ -7,6 +7,7 @@ from dnd_rpg_engine.ai.intelligence import Goal, GoalKind, IntelligentActorContr
 from dnd_rpg_engine.core.commands import CustomCommand, GameCommand, MoveCommand, WaitCommand
 from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.models import Entity
+from dnd_rpg_engine.rules.runtime import RuleCapability
 from dnd_rpg_engine.spatial import ContinuousSpace, GraphSpace, GridSpace, SpatialAuthority, Vector3
 
 
@@ -14,9 +15,9 @@ class AdvancedGameEngine(GameEngine):
     """Integrated v1.2-v1.5 engine profile.
 
     The base ``GameEngine`` stays backward compatible. This subclass opts a
-    campaign into authoritative spatial validation and the intelligent-actor
-    planner while preserving the same command/event, scheduler, persistence,
-    and multiplayer contracts.
+    campaign into runtime-owned advanced rules, authoritative spatial validation,
+    and the intelligent-actor planner while preserving the same command/event,
+    scheduler, persistence, and multiplayer contracts.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -136,6 +137,100 @@ class AdvancedGameEngine(GameEngine):
         self.exploration.visit(actor.id, actor.position.area_id)
         await self._emit("location.visited", actor_id=actor.id, target_id=actor.position.area_id)
         return duration
+
+    async def _handle_zero_hp(
+        self,
+        entity: Entity,
+        *,
+        source_id: str | None = None,
+        critical: bool = False,
+        damage: int = 0,
+        excess_damage: int = 0,
+        was_at_zero: bool = False,
+    ) -> None:
+        runtime = self.combat.runtime
+        if not runtime.has_capability(RuleCapability.DEATH_SAVES) or not hasattr(runtime, "handle_zero_hp"):
+            await super()._handle_zero_hp(
+                entity,
+                source_id=source_id,
+                critical=critical,
+                damage=damage,
+                excess_damage=excess_damage,
+                was_at_zero=was_at_zero,
+            )
+            return
+
+        transition = runtime.handle_zero_hp(
+            entity,
+            critical=critical,
+            excess_damage=excess_damage,
+            was_at_zero=was_at_zero,
+        )
+        if transition.state == "death_saves_started":
+            if self.conditions.get("unconscious") is not None and not any(
+                condition.condition_id == "unconscious" for condition in self._active_conditions(entity)
+            ):
+                await self._apply_condition(entity.id, "unconscious", source_id=source_id)
+            self.scheduler.cancel_matching(kind="actor_ready", actor_id=entity.id)
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+            await self._emit("combat.death_saves_started", actor_id=source_id, target_id=entity.id)
+            return
+
+        if transition.failures_added:
+            await self._emit(
+                "combat.death_save_damage_failure",
+                actor_id=source_id,
+                target_id=entity.id,
+                payload={
+                    "failures_added": transition.failures_added,
+                    "failures": transition.failures,
+                    "damage": damage,
+                },
+            )
+        if transition.state == "defeated":
+            payload = {"reason": transition.reason} if transition.reason else {}
+            await self._emit("combat.entity_defeated", actor_id=source_id, target_id=entity.id, payload=payload)
+            return
+        if transition.state == "death_save_failure" and not self._has_readiness_task(entity.id):
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+
+    async def _resolve_death_save(self, entity: Entity) -> None:
+        runtime = self.combat.runtime
+        if not runtime.has_capability(RuleCapability.DEATH_SAVES) or not hasattr(runtime, "resolve_death_save"):
+            await super()._resolve_death_save(entity)
+            return
+
+        outcome = runtime.resolve_death_save(entity)
+        if outcome.roll:
+            payload: dict[str, object] = {
+                "roll": outcome.roll,
+                "successes": outcome.successes,
+                "failures": outcome.failures,
+            }
+            if outcome.recovered_hp:
+                payload["recovered_hp"] = outcome.recovered_hp
+            await self._emit("combat.death_save", actor_id=entity.id, payload=payload)
+
+        if outcome.state == "recovered":
+            await self._recover_from_zero_hp(entity)
+            self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+            return
+        if outcome.state == "stable":
+            await self._emit("combat.stabilized", target_id=entity.id)
+            return
+        if outcome.state == "defeated":
+            await self._emit("combat.entity_defeated", target_id=entity.id)
+            return
+        self._schedule_actor_ready(entity.id, delay=self.rules.round_seconds)
+
+    async def _recover_from_zero_hp(self, entity: Entity) -> None:
+        runtime = self.combat.runtime
+        if runtime.has_capability(RuleCapability.DEATH_SAVES) and hasattr(runtime, "recover_from_zero_hp"):
+            runtime.recover_from_zero_hp(entity)
+            active = [condition for condition in self._active_conditions(entity) if condition.condition_id != "unconscious"]
+            self._set_conditions(entity, active)
+            return
+        await super()._recover_from_zero_hp(entity)
 
     def _actor_goals(self, actor: Entity) -> list[Goal]:
         raw_goals = actor.component("ai").get("goals", [])
