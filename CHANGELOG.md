@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.8.0 - 2026-08-16
+
+### Added
+- Persistent typed Creator Studio projects with revision snapshots, restore-as-new-revision history, validation, export, and marketplace publishing.
+- Visual SVG world-map editor with draggable nodes, typed connections, node inspection, layout controls, and pack-health feedback.
+- Structured browser editors for creatures, spells, quests/objectives, rules documents, and campaign templates instead of raw JSON-only editing.
+- `/api/v1/studio` endpoints backed by the same `ContentPack` models and `ContentValidator` used by runtime content loading.
+- v1.8 platform application factory combining existing REST/WebSocket routes with lifecycle, hosting, reconnect, and Creator Studio APIs.
+- `rpg-engine-host` production platform command; the existing `rpg-engine serve` command now starts the full Studio-capable v1.8 platform as well.
+
+### Changed
+- Package version is now `1.8.0` while the stable public HTTP namespace remains `/api/v1`.
+- Public package exports include `CharacterLifecycle` and the integrated `AdvancedGameEngine` profile.
+
+## 1.7.0 - 2026-08-16
+
+### Added
+- Async PostgreSQL persistence backend implementing the existing campaign/event/snapshot/JSON-store contract.
+- Ordered PostgreSQL schema migrations for campaigns, events, snapshots, hosted campaigns, workers, leases, and reconnect-ticket indexes.
+- Production simulation-worker registry with heartbeat health, capacity limits, stable rendezvous-hash placement, and authoritative PostgreSQL campaign leases.
+- `rpg-engine-worker` process entrypoint for horizontally scalable campaign simulation workers.
+- Opaque reconnect/resume tickets stored by SHA-256 token hash, including expiration, revocation, rotation, event-sequence checkpoints, and missed-event replay.
+- Hosting status and reconnect/resume HTTP endpoints.
+- Optional `hosting` dependency group for `asyncpg`, keeping SQLite-only installations lightweight.
+
+### Changed
+- Storage backend selection can use a PostgreSQL URL without changing normal engine persistence call sites.
+- SQLite remains the zero-setup local/development backend.
+
+## 1.6.0 - 2026-08-16
+
+### Added
+- Ruleset-neutral character lifecycle service covering character construction, multiclass-compatible progression, XP/milestone advancement, level-up outcomes, class resources, rests, equipment slots, and attunement.
+- Persistent lifecycle state stored in normal entity components so advancement participates naturally in snapshots, replay, event sourcing, multiplayer, and saves.
+- Generic equipment aggregation and class-resource recovery hooks suitable for custom rulesets.
+- SRD lifecycle adapter generated from the existing compact class catalog.
+- Character lifecycle commands/events integrated into `AdvancedGameEngine` plus REST endpoints for character creation, XP, level-up, rests, equipment, and resource management.
+
+### Changed
+- SRD proficiency now prefers the new multiclass-aware lifecycle level while retaining the legacy `progression.level` fallback.
+- Rest completion resets the active rules runtime's turn/action economy through the typed runtime interface.
+
 ## 1.5.0 - 2026-08-16
 
 ### Added
