@@ -15,20 +15,23 @@ app = typer.Typer(help="Production RPG simulation worker.", no_args_is_help=Fals
 
 @app.command()
 def run(
-    database_url: str = typer.Option(
-        default_factory=lambda: os.environ.get("RPG_DATABASE_URL", ""),
+    database_url: str | None = typer.Option(
+        default=None,
         help="PostgreSQL DSN. Defaults to RPG_DATABASE_URL.",
     ),
-    capacity: int = typer.Option(
-        default_factory=lambda: int(os.environ.get("RPG_WORKER_CAPACITY", "16")),
+    capacity: int | None = typer.Option(
+        default=None,
         min=1,
+        help="Maximum campaigns hosted by this worker. Defaults to RPG_WORKER_CAPACITY or 16.",
     ),
     worker_id: str | None = typer.Option(default=None),
 ) -> None:
     """Run a lease-backed campaign simulation worker."""
-    if not database_url.startswith(("postgres://", "postgresql://")):
+    resolved_database = database_url or os.environ.get("RPG_DATABASE_URL", "")
+    resolved_capacity = capacity if capacity is not None else int(os.environ.get("RPG_WORKER_CAPACITY", "16"))
+    if not resolved_database.startswith(("postgres://", "postgresql://")):
         raise typer.BadParameter("production workers require a PostgreSQL database URL")
-    asyncio.run(_run(database_url, capacity=capacity, worker_id=worker_id))
+    asyncio.run(_run(resolved_database, capacity=resolved_capacity, worker_id=worker_id))
 
 
 async def _run(database_url: str, *, capacity: int, worker_id: str | None) -> None:
