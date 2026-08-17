@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 from typing import Type
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from dnd_rpg_engine import __version__
 from dnd_rpg_engine.api.distribution import router as distribution_router
 from dnd_rpg_engine.api.hosting import router as hosting_router
 from dnd_rpg_engine.api.knowledge_routes import install_knowledge_scoped_routes
 from dnd_rpg_engine.api.lifecycle import router as lifecycle_router
+from dnd_rpg_engine.api.npcs import router as npc_router
 from dnd_rpg_engine.api.rule_studio import router as rule_studio_router
 from dnd_rpg_engine.api.studio import router as studio_router
 from dnd_rpg_engine.api.workbench import router as workbench_router
@@ -59,6 +62,7 @@ def create_platform_app(
         }
 
     app.include_router(lifecycle_router)
+    app.include_router(npc_router)
     app.include_router(hosting_router)
     app.include_router(studio_router)
     app.include_router(rule_studio_router)
@@ -67,4 +71,11 @@ def create_platform_app(
     app.include_router(workbench_router)
     if advanced:
         install_knowledge_scoped_routes(app)
+
+    static_dir = Path(__file__).resolve().parent.parent / "web" / "static"
+
+    @app.get("/hero", tags=["workbench"], include_in_schema=False)
+    async def hero_workshop() -> FileResponse:
+        return FileResponse(static_dir / "hero.html")
+
     return app
