@@ -20,12 +20,13 @@ dependencies = [
 
 [project.optional-dependencies]
 tui = ["textual>=8.2.8,<9"]
+srd = ["pypdf>=5.9,<7"]
 dev = [
   "pytest>=9.1.1,<10",
   "pytest-asyncio>=1.2.0,<2",
   "pytest-cov>=6,<8",
 ]
-all = ["textual>=8.2.8,<9"]
+all = ["textual>=8.2.8,<9", "pypdf>=5.9,<7"]
 
 [project.scripts]
 rpg-engine = "dnd_rpg_engine.cli:app"

@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from dnd_rpg_engine.api.schemas import CommandRequest, CreateCampaignRequest, CreateEntityRequest, EncounterRequest, InstantiatePackRequest, JoinRequest, TickRequest, UpdateTimingRequest
+from dnd_rpg_engine.core.auth import mint_token, verify_token
 from dnd_rpg_engine.core.commands import parse_command
 from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.models import Entity
@@ -21,11 +22,14 @@ from dnd_rpg_engine.creator.loader import install_content_pack
 from dnd_rpg_engine.creator.marketplace import MarketplaceRegistry
 from dnd_rpg_engine.multiplayer.protocol import ClientIdentity, ClientRole
 from dnd_rpg_engine.multiplayer.sessions import SessionManager
+from dnd_rpg_engine.rulesets.srd_5_2_1.catalog_store import SRDCatalogStore
+from dnd_rpg_engine.rulesets.srd_5_2_1.toolbox import encounter_budget
 
 
 class ApplicationState:
-    def __init__(self, database_path: str) -> None:
+    def __init__(self, database_path: str, srd_catalog_path: str | None = None) -> None:
         self.store = SQLiteStore(database_path)
+        self.srd_catalog = SRDCatalogStore(srd_catalog_path) if srd_catalog_path else None
         self.engines: dict[str, GameEngine] = {}
         self.sessions = SessionManager()
         self.marketplace = MarketplaceRegistry()
@@ -33,6 +37,7 @@ class ApplicationState:
         self.realtime_tasks: dict[str, tuple[asyncio.Event, asyncio.Task[None]]] = {}
         self.websocket_clients: dict[str, set[WebSocket]] = {}
         self.broadcast_tasks: dict[str, asyncio.Task[None]] = {}
+        self.jwt_secret = "rpg-engine-dev-secret"
 
     async def get_engine(self, campaign_id: str) -> GameEngine:
         engine = self.engines.get(campaign_id)
@@ -66,6 +71,17 @@ class ApplicationState:
             raise HTTPException(status_code=404, detail="campaign session not found") from exc
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    def require_bearer_client(self, campaign_id: str, authorization: str | None) -> str:
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="bearer token required")
+        try:
+            claims = verify_token(self.jwt_secret, authorization.removeprefix("Bearer ").strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        if claims.campaign_id != campaign_id:
+            raise HTTPException(status_code=403, detail="token campaign mismatch")
+        return claims.client_id
 
     async def ensure_realtime(self, campaign_id: str, engine: GameEngine) -> None:
         if campaign_id in self.realtime_tasks or not engine.config.realtime_enabled:
@@ -114,12 +130,14 @@ class ApplicationState:
                 await task
 
 
-def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
-    state = ApplicationState(database_path)
+def create_app(database_path: str = "rpg_engine.sqlite3", srd_catalog_path: str | None = None) -> FastAPI:
+    state = ApplicationState(database_path, srd_catalog_path)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await state.store.initialize()
+        if state.srd_catalog is not None:
+            await state.srd_catalog.initialize()
         stored_packs = await state.store.list_json("marketplace.pack")
         for item_id, raw_pack in stored_packs.items():
             try:
@@ -132,14 +150,49 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
 
     app = FastAPI(
         title="RPG Engine API",
-        version="1.0.0",
+        version="1.2.0",
         description="Authoritative deterministic RPG simulation API with configurable turn/time-driven scheduling.",
         lifespan=lifespan,
     )
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "version": "1.0.0"}
+        return {"status": "ok", "version": "1.2.0"}
+
+    @app.get("/api/v1/srd/catalog")
+    async def srd_catalog_info() -> dict[str, Any]:
+        if state.srd_catalog is None:
+            raise HTTPException(status_code=404, detail="offline SRD catalog is not configured")
+        manifest = await state.srd_catalog.manifest()
+        return {
+            "manifest": None if manifest is None else manifest.model_dump(mode="json"),
+            "sections": await state.srd_catalog.sections(),
+        }
+
+    @app.get("/api/v1/srd/catalog/{section}")
+    async def srd_catalog_search(
+        section: str,
+        q: str = Query(default="", max_length=100),
+        limit: int = Query(default=50, ge=1, le=200),
+    ) -> list[dict[str, Any]]:
+        if state.srd_catalog is None:
+            raise HTTPException(status_code=404, detail="offline SRD catalog is not configured")
+        sections = await state.srd_catalog.sections()
+        if section not in sections:
+            raise HTTPException(status_code=404, detail="catalog section not found")
+        return await state.srd_catalog.search(section, q, limit=limit)
+
+    @app.get("/api/v1/srd/encounter-budget")
+    async def srd_encounter_budget(
+        levels: str = Query(min_length=1, max_length=120),
+        difficulty: str = Query(default="moderate", pattern="^(low|moderate|high)$"),
+    ) -> dict[str, Any]:
+        try:
+            parsed = [int(part.strip()) for part in levels.split(",") if part.strip()]
+            budget = encounter_budget(parsed, difficulty)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"levels": parsed, "difficulty": difficulty, "xp_budget": budget}
 
     @app.post("/api/v1/campaigns")
     async def create_campaign(request: CreateCampaignRequest) -> dict[str, Any]:
@@ -151,9 +204,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         session = await state.sessions.host(engine.state.id, engine, request.owner_id)
         owner = ClientIdentity(user_id=request.owner_id, display_name=request.owner_id, role=ClientRole.OWNER)
         session.join(owner)
+        access_token = mint_token(state.jwt_secret, campaign_id=engine.state.id, client_id=owner.client_id, user_id=owner.user_id, role=owner.role.value)
         await state.ensure_realtime(engine.state.id, engine)
         await state.ensure_broadcast(engine.state.id, engine)
-        return {"campaign_id": engine.state.id, "owner_client_id": owner.client_id, **engine.state_payload()}
+        return {"campaign_id": engine.state.id, "owner_client_id": owner.client_id, "access_token": access_token, **engine.state_payload()}
 
     @app.get("/api/v1/campaigns")
     async def list_campaigns(limit: int = Query(default=100, ge=1, le=1000)) -> list[dict[str, Any]]:
@@ -169,9 +223,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         request: UpdateTimingRequest,
         client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
-        state.require_owner(campaign_id, client_id)
+        state.require_owner(campaign_id, client_id or state.require_bearer_client(campaign_id, authorization))
         kwargs: dict[str, Any] = {}
         if "time_mode" in request.model_fields_set:
             kwargs["time_mode"] = request.time_mode
@@ -190,9 +245,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         request: EncounterRequest,
         client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, object]:
         engine = await state.get_engine(campaign_id)
-        state.require_owner(campaign_id, client_id)
+        state.require_owner(campaign_id, client_id or state.require_bearer_client(campaign_id, authorization))
         try:
             return await engine.start_encounter(request.participant_ids)
         except (ValueError, KeyError) as exc:
@@ -203,9 +259,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         encounter_id: str,
         client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, str]:
         engine = await state.get_engine(campaign_id)
-        state.require_owner(campaign_id, client_id)
+        state.require_owner(campaign_id, client_id or state.require_bearer_client(campaign_id, authorization))
         try:
             await engine.end_encounter(encounter_id)
         except KeyError as exc:
@@ -217,9 +274,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         request: CreateEntityRequest,
         client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
-        state.require_owner(campaign_id, client_id)
+        state.require_owner(campaign_id, client_id or state.require_bearer_client(campaign_id, authorization))
         entity = Entity(
             id=request.id or str(uuid4()),
             name=request.name,
@@ -240,9 +298,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         request: CommandRequest,
         header_client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
-        client_id = request.client_id or header_client_id
+        client_id = request.client_id or header_client_id or state.require_bearer_client(campaign_id, authorization)
         state.require_client(campaign_id, client_id)
         try:
             parsed = parse_command(request.command)
@@ -265,9 +324,10 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         campaign_id: str,
         request: TickRequest,
         client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
+        authorization: str | None = Header(default=None, alias="Authorization"),
     ) -> dict[str, Any]:
         engine = await state.get_engine(campaign_id)
-        state.require_owner(campaign_id, client_id)
+        state.require_owner(campaign_id, client_id or state.require_bearer_client(campaign_id, authorization))
         result = await engine.tick(request.seconds, narrate=request.narrate)
         return {
             "version": result.version,
@@ -298,7 +358,8 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
             actor_ids=request.actor_ids,
         )
         state.sessions.require(campaign_id).join(identity)
-        return identity.model_dump(mode="json")
+        access_token = mint_token(state.jwt_secret, campaign_id=campaign_id, client_id=identity.client_id, user_id=identity.user_id, role=identity.role.value)
+        return {**identity.model_dump(mode="json"), "access_token": access_token}
 
     @app.post("/api/v1/creator/validate")
     async def validate_pack(pack: ContentPack) -> dict[str, Any]:
@@ -355,7 +416,7 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
         return {"manifest": pack.manifest.model_dump(mode="json"), "content_hash": pack.content_hash()}
 
     @app.websocket("/api/v1/campaigns/{campaign_id}/ws")
-    async def websocket_campaign(websocket: WebSocket, campaign_id: str) -> None:
+    async def websocket_campaign(websocket: WebSocket, campaign_id: str, token: str | None = Query(default=None)) -> None:
         await websocket.accept()
         try:
             engine = await state.get_engine(campaign_id)
@@ -365,6 +426,8 @@ def create_app(database_path: str = "rpg_engine.sqlite3") -> FastAPI:
             return
         await state.ensure_broadcast(campaign_id, engine)
         client_id = websocket.query_params.get("client_id")
+        if token:
+            client_id = state.require_bearer_client(campaign_id, f"Bearer {token}")
         state.websocket_clients.setdefault(campaign_id, set()).add(websocket)
         await websocket.send_json({"kind": "state", "state": engine.state_payload()})
         try:
