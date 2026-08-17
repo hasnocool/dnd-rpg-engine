@@ -160,33 +160,23 @@ class IdentityService:
         *,
         scope_type: ScopeType | None = None,
     ) -> ResourceRef:
-        """Register ownership/ancestry for an authoritative tenant resource.
-
-        A user can directly claim a newly-created resource only for themselves.
-        Registering a resource owned by somebody else requires management rights
-        on its nearest known parent scope. This keeps campaign/project tenancy
-        explicit instead of inferring authority from caller-supplied IDs.
-        """
+        """Register ownership/ancestry for an authoritative tenant resource."""
         parsed_scope = scope_type or self._scope_for_resource(resource)
         if parsed_scope is None:
             raise ValueError("resource type is not a tenant scope")
         if resource.owner_user_id is None:
             resource.owner_user_id = principal.user_id
+        parent = self._parent_resource(resource)
         if resource.owner_user_id != principal.user_id:
-            parent = self._parent_resource(resource)
             if parent is None:
                 raise PermissionError("cannot register a resource owned by another user without a managed parent scope")
             self.authorize(principal, Permission.MEMBERSHIP_MANAGE, parent)
-        else:
-            parent = self._parent_resource(resource)
-            if parent is not None and not self.can(principal, Permission.CAMPAIGN_CREATE, parent):
-                # Direct ownership is sufficient for an unscoped personal
-                # resource. Once a parent scope is supplied, the parent must
-                # also allow resource creation.
-                if not self.can(principal, Permission.WORKSPACE_MANAGE, parent) and not self.can(
-                    principal, Permission.ORGANIZATION_MANAGE, parent
-                ):
-                    raise PermissionError("resource parent scope does not permit creation")
+        elif parent is not None:
+            creation_permission = (
+                Permission.STUDIO_WRITE if parsed_scope is ScopeType.PROJECT else Permission.CAMPAIGN_CREATE
+            )
+            if not self.can(principal, creation_permission, parent):
+                raise PermissionError(f"resource parent scope does not grant {creation_permission.value}")
         key = self.resource_key(parsed_scope, resource.id)
         existing = self.resources.get(key)
         if existing is not None and existing.owner_user_id not in {None, resource.owner_user_id}:
