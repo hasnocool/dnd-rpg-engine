@@ -34,7 +34,8 @@ class ResourceRequest(BaseModel):
     amount: int = Field(default=1, ge=0)
 
 
-def _require_owner(request: Request, campaign_id: str, client_id: str | None) -> None:
+async def _require_owner(request: Request, campaign_id: str, client_id: str | None) -> None:
+    await request.app.state.rpg.get_engine(campaign_id)
     request.app.state.rpg.require_owner(campaign_id, client_id)
 
 
@@ -83,7 +84,7 @@ async def create_character(
     client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
 ) -> dict[str, Any]:
     engine = await _advanced_engine(request, campaign_id)
-    _require_owner(request, campaign_id, client_id)
+    await _require_owner(request, campaign_id, client_id)
     try:
         entity = await engine.create_character(build)
         await engine.save()
@@ -121,7 +122,7 @@ async def award_xp(
     payload: XPRequest,
     client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
 ) -> dict[str, Any]:
-    _require_owner(request, campaign_id, client_id)
+    await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.award_xp", payload.model_dump(), client_id)
 
 
@@ -133,7 +134,7 @@ async def level_up(
     payload: LevelUpRequest,
     client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
 ) -> dict[str, Any]:
-    _require_owner(request, campaign_id, client_id)
+    await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.level_up", payload.model_dump(), client_id)
 
 
@@ -189,5 +190,5 @@ async def restore_resource(
     payload: ResourceRequest,
     client_id: str | None = Header(default=None, alias="X-RPG-Client-ID"),
 ) -> dict[str, Any]:
-    _require_owner(request, campaign_id, client_id)
+    await _require_owner(request, campaign_id, client_id)
     return await _dispatch(request, campaign_id, actor_id, "character.restore_resource", payload.model_dump(), client_id)
