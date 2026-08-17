@@ -175,8 +175,8 @@ def srd_info() -> None:
 
 
 @app.command("fetch-srd")
-def fetch_srd(output: Path = Path(".cache/srd/SRD_CC_v5.2.pdf")) -> None:
-    """Cache the allowlisted official SRD PDF for local reference."""
+def fetch_srd(output: Path = Path(".cache/srd/SRD_CC_v5.2.1.pdf")) -> None:
+    """Cache the allowlisted official SRD 5.2.1 PDF for local reference."""
     asyncio.run(_fetch_srd(output))
 
 
