@@ -1,0 +1,57 @@
+<!-- src/dnd_rpg_engine/web/static/hero.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hero & NPC Workshop · RPG Engine</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/hero.css" />
+</head>
+<body class="hero-body">
+  <header class="hero-header">
+    <div><span class="eyebrow">CHARACTER LIFECYCLE</span><h1>Hero & NPC Workshop</h1><p>Create, edit, and place playable heroes and living NPCs in an authoritative campaign.</p></div>
+    <nav><a href="/">Campaign Workbench</a><a href="/creator">Creator Studio</a><a href="/docs">API</a></nav>
+  </header>
+  <main class="hero-shell">
+    <section class="hero-panel session-panel">
+      <div class="panel-heading"><div><span class="eyebrow">CAMPAIGN</span><h2>Connect as Game Master</h2></div><span id="connection-state" class="pill">not connected</span></div>
+      <div class="form-grid connect-grid"><label>Campaign<select id="campaign-select"><option>Loading…</option></select></label><label>Owner identity<input id="owner-id" value="local" /></label><button id="connect-owner" class="primary">Open workshop</button></div>
+      <div id="campaign-summary" class="muted">Choose a campaign and connect with its owner identity.</div>
+    </section>
+    <div class="hero-tabs" role="tablist"><button class="active" data-workshop-tab="hero">Create Character / Hero</button><button data-workshop-tab="npc">NPC Manager</button></div>
+    <section id="hero-tab" class="workshop-tab active">
+      <div class="workshop-grid">
+        <aside class="hero-panel library-panel"><div class="panel-heading"><h2>Heroes</h2><button id="new-hero">New hero</button></div><input id="hero-filter" placeholder="Filter heroes…" /><div id="hero-list" class="entity-list"><div class="empty">Connect to a campaign.</div></div></aside>
+        <section class="hero-panel editor-panel">
+          <div class="panel-heading"><div><span class="eyebrow">DEDICATED HERO CREATOR</span><h2 id="hero-editor-title">Create a new hero</h2></div><span id="hero-mode" class="pill">new</span></div>
+          <form id="hero-form">
+            <section class="form-section"><h3>Identity</h3><div class="form-grid">
+              <label class="wide">Hero name<input id="hero-name" required placeholder="Aria Stoneward" /></label><label>Class<select id="hero-class"><option value="adventurer">Adventurer</option></select></label><label>Starting level<input id="hero-level" type="number" min="1" max="100" value="1" /></label><label>Species / ancestry<input id="hero-species" placeholder="human" /></label><label>Background<input id="hero-background" placeholder="wanderer" /></label><label>Player owner ID<input id="hero-owner" placeholder="player-1" /></label><label>Starting XP<input id="hero-xp" type="number" min="0" value="0" /></label><label class="wide">Tags<input id="hero-tags" placeholder="hero, party_leader" /></label><label class="wide">Starting equipment IDs<input id="hero-equipment" placeholder="longsword, shield, explorers_pack" /></label>
+            </div></section>
+            <section class="form-section"><h3>Ability scores</h3><div class="ability-grid"><label>STR<input id="hero-strength" type="number" min="1" max="40" value="10" /></label><label>DEX<input id="hero-dexterity" type="number" min="1" max="40" value="10" /></label><label>CON<input id="hero-constitution" type="number" min="1" max="40" value="10" /></label><label>INT<input id="hero-intelligence" type="number" min="1" max="40" value="10" /></label><label>WIS<input id="hero-wisdom" type="number" min="1" max="40" value="10" /></label><label>CHA<input id="hero-charisma" type="number" min="1" max="40" value="10" /></label></div></section>
+            <section class="form-section"><h3>Appearance & presentation</h3><div class="form-grid"><label class="wide">Description<textarea id="hero-description" rows="4" placeholder="Physical appearance, clothing, notable features…"></textarea></label><label>Portrait / asset<input id="hero-portrait" placeholder="assets/heroes/aria.png" /></label><label>Pronouns / presentation<input id="hero-pronouns" placeholder="they/them" /></label></div></section>
+            <div class="form-actions"><button type="button" id="hero-reset" class="ghost">Reset</button><button type="submit" id="hero-save" class="primary">Create hero</button></div>
+          </form><pre id="hero-output" class="output">Connect to begin.</pre>
+        </section>
+        <aside class="hero-panel preview-panel"><h2>Hero preview</h2><div id="hero-preview" class="character-card empty">Fill in the hero form.</div><h3>Lifecycle catalog</h3><div id="hero-catalog" class="catalog-summary muted">Class and equipment data appears after connecting.</div></aside>
+      </div>
+    </section>
+    <section id="npc-tab" class="workshop-tab">
+      <div class="workshop-grid">
+        <aside class="hero-panel library-panel"><div class="panel-heading"><h2>Live NPCs</h2><button id="new-npc">New NPC</button></div><input id="npc-filter" placeholder="Filter NPCs…" /><div id="npc-list" class="entity-list"><div class="empty">Connect to a campaign.</div></div></aside>
+        <section class="hero-panel editor-panel">
+          <div class="panel-heading"><div><span class="eyebrow">AUTHORITATIVE NPC</span><h2 id="npc-editor-title">Add NPC</h2></div><span id="npc-mode" class="pill">new</span></div>
+          <form id="npc-form">
+            <section class="form-section"><h3>Identity & behavior</h3><div class="form-grid"><label>NPC ID<input id="npc-id" required placeholder="blacksmith_erin" /></label><label>Name<input id="npc-name" required placeholder="Erin Vale" /></label><label>Role<input id="npc-role" value="resident" /></label><label>AI profile<input id="npc-ai" value="ambient_npc" /></label><label>Faction ID<input id="npc-faction" /></label><label>Personality ID<input id="npc-personality" /></label><label>Dialogue ID<input id="npc-dialogue" /></label><label>Shop ID<input id="npc-shop" /></label><label>Schedule ID<input id="npc-schedule" /></label><label class="wide">Tags<input id="npc-tags" placeholder="merchant, friendly" /></label><label class="wide">Knowledge tags<input id="npc-knowledge" placeholder="town_gossip, blacksmithing" /></label></div></section>
+            <section class="form-section"><h3>Stats & world placement</h3><div class="ability-grid"><label>STR<input id="npc-strength" type="number" min="1" max="40" value="10" /></label><label>DEX<input id="npc-dexterity" type="number" min="1" max="40" value="10" /></label><label>CON<input id="npc-constitution" type="number" min="1" max="40" value="10" /></label><label>INT<input id="npc-intelligence" type="number" min="1" max="40" value="10" /></label><label>WIS<input id="npc-wisdom" type="number" min="1" max="40" value="10" /></label><label>CHA<input id="npc-charisma" type="number" min="1" max="40" value="10" /></label></div><div class="form-grid"><label>HP<input id="npc-hp" type="number" min="0" value="10" /></label><label>Max HP<input id="npc-max-hp" type="number" min="1" value="10" /></label><label>Area / map<input id="npc-area" value="start" /></label><label>X<input id="npc-x" type="number" step="0.5" value="0" /></label><label>Y<input id="npc-y" type="number" step="0.5" value="0" /></label><label>Z<input id="npc-z" type="number" step="0.5" value="0" /></label></div></section>
+            <section class="form-section"><h3>Appearance</h3><div class="form-grid"><label class="wide">Description<textarea id="npc-description" rows="4"></textarea></label><label>Portrait / asset<input id="npc-portrait" /></label></div></section>
+            <div class="form-actions"><button type="button" id="npc-delete" class="danger" disabled>Remove NPC</button><button type="button" id="npc-reset" class="ghost">Reset</button><button type="submit" id="npc-save" class="primary">Add NPC</button></div>
+          </form><pre id="npc-output" class="output">Connect to begin.</pre>
+        </section>
+        <aside class="hero-panel preview-panel"><h2>NPC preview</h2><div id="npc-preview" class="character-card empty">Fill in the NPC form.</div><p class="muted">NPC edits update the live authoritative entity plus its dialogue, shop, faction, personality, and schedule profile.</p></aside>
+      </div>
+    </section>
+  </main><div id="toasts" class="toasts"></div><script type="module" src="/static/hero.js"></script>
+</body>
+</html>
