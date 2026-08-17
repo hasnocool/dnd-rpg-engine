@@ -1,4 +1,4 @@
-"""AI narrator, actor intelligence, campaign direction, and procedural helpers."""
+"""AI game-master, actor intelligence, campaign direction, perception, planning, and memory."""
 
 from dnd_rpg_engine.ai.director import AIDirector, DirectorProposal, DirectorProposalKind, DirectorSnapshot
 from dnd_rpg_engine.ai.intelligence import (
@@ -10,11 +10,14 @@ from dnd_rpg_engine.ai.intelligence import (
     Goal,
     GoalKind,
     IntelligentActorController,
+    MemoryRecord,
     PerceptionSnapshot,
     PerceptionSystem,
+    PersistentActorMemory,
     SelectorNode,
     SequenceNode,
     TacticalPlanner,
+    UtilityScorer,
 )
 
 __all__ = [
@@ -30,9 +33,12 @@ __all__ = [
     "Goal",
     "GoalKind",
     "IntelligentActorController",
+    "MemoryRecord",
     "PerceptionSnapshot",
     "PerceptionSystem",
+    "PersistentActorMemory",
     "SelectorNode",
     "SequenceNode",
     "TacticalPlanner",
+    "UtilityScorer",
 ]
