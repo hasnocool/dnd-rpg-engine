@@ -1,8 +1,7 @@
-# src/dnd_rpg_engine/api/platform.py
 from __future__ import annotations
 
 import importlib
-from typing import Type
+from typing import Any, Type
 
 from fastapi import FastAPI
 
@@ -19,6 +18,20 @@ from dnd_rpg_engine.api.world_platform import router as world_platform_router
 from dnd_rpg_engine.core.engine import GameEngine
 from dnd_rpg_engine.core.world_engine import WorldPlatformEngine
 from dnd_rpg_engine.hosting.postgres import create_store
+from dnd_rpg_engine.rulesets.srd_5_2_1.lifecycle import build_srd_character_lifecycle
+
+
+class DndWorldPlatformEngine(WorldPlatformEngine):
+    """World-platform profile with the bundled SRD 5.2.1 hero catalog enabled.
+
+    ``WorldPlatformEngine`` remains ruleset-neutral. The D&D platform server uses
+    this profile so player clients always receive the source-backed SRD class
+    definitions needed by character creation.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.configure_character_lifecycle(build_srd_character_lifecycle())
 
 
 def create_platform_app(
@@ -29,7 +42,7 @@ def create_platform_app(
     """Build the complete platform while preserving all existing /api/v1 routes."""
 
     legacy = importlib.import_module("dnd_rpg_engine.api.app")
-    engine_class: Type[GameEngine] = WorldPlatformEngine if advanced else GameEngine
+    engine_class: Type[GameEngine] = DndWorldPlatformEngine if advanced else GameEngine
     legacy.SQLiteStore = create_store
     legacy.GameEngine = engine_class
     app = legacy.create_app(database_url)

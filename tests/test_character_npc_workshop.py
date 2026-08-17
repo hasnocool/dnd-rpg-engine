@@ -1,4 +1,3 @@
-# tests/test_character_npc_workshop.py
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -19,14 +18,17 @@ def test_character_creator_edit_and_npc_crud(tmp_path) -> None:
 
         catalog = client.get(f"/api/v1/campaigns/{campaign_id}/characters/catalog")
         assert catalog.status_code == 200
-        assert "adventurer" in catalog.json()["classes"]
+        classes = catalog.json()["classes"]
+        assert "fighter" in classes
+        assert "wizard" in classes
+        assert classes["fighter"]["hit_die"] == 10
 
         hero = client.post(
             f"/api/v1/campaigns/{campaign_id}/characters",
             headers=headers,
             json={
                 "name": "Aria",
-                "class_id": "adventurer",
+                "class_id": "fighter",
                 "owner_id": "player-1",
                 "species_id": "human",
                 "background_id": "wanderer",
