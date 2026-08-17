@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RPG Engine Creator</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div><h1>Creator Platform</h1><p>Campaign, map, creature, rules, and mod-pack editor</p></div>
+    <nav><a href="/">Play</a><a href="/docs">API</a></nav>
+  </header>
+  <main class="creator-layout">
+    <section class="panel">
+      <h2>Pack metadata</h2>
+      <label>ID <input id="pack-id" value="example.adventure" /></label>
+      <label>Name <input id="pack-name" value="Example Adventure" /></label>
+      <label>Author <input id="pack-author" value="creator" /></label>
+      <label>Version <input id="pack-version" value="1.0.0" /></label>
+      <label>License <input id="pack-license" value="CC0-1.0" /></label>
+      <button id="new-pack">Reset pack</button>
+    </section>
+
+    <section class="panel editor-wide">
+      <div class="tabs">
+        <button data-tab="campaigns" class="active">Campaigns</button>
+        <button data-tab="creatures">Creatures</button>
+        <button data-tab="maps">Maps</button>
+        <button data-tab="rules">Rules</button>
+        <button data-tab="spells">Spells</button>
+        <button data-tab="quests">Quests</button>
+      </div>
+      <p class="small">Edit the selected section as JSON. The server validates references before publication.</p>
+      <textarea id="section-editor" spellcheck="false"></textarea>
+      <div class="button-row">
+        <button id="apply-section">Apply section</button>
+        <button id="validate-pack">Validate pack</button>
+        <button id="publish-pack">Publish to community registry</button>
+      </div>
+      <pre id="validation-output" class="mono output"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>Marketplace</h2>
+      <label>Search <input id="market-search" /></label>
+      <button id="search-market">Search</button>
+      <div id="market-results" class="cards"></div>
+    </section>
+  </main>
+  <script type="module" src="/static/creator.js"></script>
+</body>
+</html>

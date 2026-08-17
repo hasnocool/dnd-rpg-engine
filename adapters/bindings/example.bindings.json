@@ -1,0 +1,25 @@
+{
+  "$schema": "./scene-bindings.schema.json",
+  "version": 1,
+  "entities": {
+    "hero": {
+      "2d_scene": "res://actors/Hero.tscn",
+      "3d_scene": "res://actors/Hero3D.tscn"
+    },
+    "clockwork_rival": {
+      "2d_scene": "res://actors/ClockworkRival.tscn",
+      "3d_scene": "res://actors/ClockworkRival3D.tscn"
+    }
+  },
+  "areas": {
+    "training_ground": {
+      "2d_scene": "res://maps/TrainingGround.tscn",
+      "3d_scene": "res://world/TrainingGround3D.tscn"
+    }
+  },
+  "events": {
+    "combat.attack_resolved": "play_action_feedback",
+    "spell.resolved": "play_spell_feedback",
+    "combat.entity_defeated": "play_defeat_feedback"
+  }
+}

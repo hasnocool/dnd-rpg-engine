@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RPG Engine Browser Client</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>RPG Engine</h1>
+      <p>Authoritative turn/time-driven campaign client</p>
+    </div>
+    <nav><a href="/creator">Creator</a><a href="/docs">API</a></nav>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls">
+      <h2>Campaign</h2>
+      <label>Name <input id="campaign-name" value="Browser Campaign" /></label>
+      <label>Time mode
+        <select id="time-mode">
+          <option value="turn_based">Turn based</option>
+          <option value="timed_turn_based">Timed turn based</option>
+          <option value="real_time">Real time</option>
+          <option value="real_time_with_pause">Real time with pause</option>
+          <option value="hybrid" selected>Hybrid</option>
+        </select>
+      </label>
+      <label>Decision timeout <input id="decision-timeout" type="number" min="1" value="10" /></label>
+      <button id="create-campaign">Create campaign</button>
+      <div class="mono small" id="campaign-id">No campaign loaded.</div>
+
+      <h2>Demo actors</h2>
+      <button id="add-demo" disabled>Add player + rival</button>
+
+      <h2>Actions</h2>
+      <label>Player
+        <select id="actor"></select>
+      </label>
+      <label>Target
+        <select id="target"></select>
+      </label>
+      <div class="button-grid">
+        <button id="action-basic" disabled>Basic action</button>
+        <button id="action-quick" disabled>Quick action</button>
+        <button id="cast" disabled>Arcane Bolt</button>
+        <button id="wait" disabled>Wait</button>
+      </div>
+      <label>Manual time advance (seconds) <input id="tick-seconds" type="number" min="0.1" step="0.5" value="2" /></label>
+      <button id="tick" disabled>Advance clock</button>
+    </section>
+
+    <section class="panel state-panel">
+      <div class="panel-heading"><h2>Live state</h2><button id="refresh" disabled>Refresh</button></div>
+      <div class="metrics" id="metrics"></div>
+      <div id="entities" class="cards"></div>
+    </section>
+
+    <section class="panel event-panel">
+      <div class="panel-heading"><h2>Event stream</h2><span id="socket-status" class="badge">offline</span></div>
+      <div id="events" class="event-log mono"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

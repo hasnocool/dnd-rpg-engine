@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dnd-rpg-engine"
+version = "1.0.0"
+description = "Headless deterministic fantasy RPG simulation engine for turn-based, timed, hybrid, real-time, web, TUI, 2D, and 3D games."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "dnd-rpg-engine contributors" }]
+dependencies = [
+  "pydantic>=2.13.4,<3",
+  "fastapi>=0.141.1,<1",
+  "uvicorn[standard]>=0.52.3,<1",
+  "typer>=0.27.0,<1",
+  "httpx>=0.28.1,<1",
+]
+
+[project.optional-dependencies]
+tui = ["textual>=8.2.8,<9"]
+dev = [
+  "pytest>=9.1.1,<10",
+  "pytest-cov>=6,<8",
+]
+all = ["textual>=8.2.8,<9"]
+
+[project.scripts]
+rpg-engine = "dnd_rpg_engine.cli:app"
+rpg-engine-tui = "dnd_rpg_engine.tui:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dnd_rpg_engine"]
+include = ["src/dnd_rpg_engine/web/static/**"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["dnd_rpg_engine"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
