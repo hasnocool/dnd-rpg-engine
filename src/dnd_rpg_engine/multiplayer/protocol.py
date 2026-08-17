@@ -1,4 +1,3 @@
-# src/dnd_rpg_engine/multiplayer/protocol.py
 from __future__ import annotations
 
 from enum import StrEnum
@@ -20,6 +19,8 @@ class ClientIdentity(BaseModel):
     display_name: str
     role: ClientRole = ClientRole.PLAYER
     actor_ids: set[str] = Field(default_factory=set)
+    authenticated: bool = False
+    session_id: str | None = None
 
 
 class ClientEnvelope(BaseModel):

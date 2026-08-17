@@ -1,9 +1,8 @@
-# src/dnd_rpg_engine/multiplayer/sessions.py
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from dnd_rpg_engine.core.commands import GameCommand
 from dnd_rpg_engine.multiplayer.protocol import ClientIdentity, ClientRole
@@ -21,7 +20,13 @@ class Party:
 
 
 class CampaignSession:
-    """Serializes authoritative commands per campaign while allowing concurrent clients."""
+    """Serializes authoritative commands per campaign while allowing concurrent clients.
+
+    ``manage_resolver`` and ``control_resolver`` are optional authenticated
+    policy hooks. They let production identity/RBAC grant GM/admin authority
+    without forging the transport-level OWNER role. When unset, legacy behavior
+    is unchanged.
+    """
 
     def __init__(self, campaign_id: str, engine: GameEngine, owner_id: str) -> None:
         self.campaign_id = campaign_id
@@ -29,6 +34,8 @@ class CampaignSession:
         self.owner_id = owner_id
         self.clients: dict[str, ClientIdentity] = {}
         self.parties: dict[str, Party] = {}
+        self.manage_resolver: Callable[[ClientIdentity], bool] | None = None
+        self.control_resolver: Callable[[ClientIdentity, str], bool] | None = None
         self._command_lock = asyncio.Lock()
 
     def join(self, identity: ClientIdentity) -> None:
@@ -58,9 +65,11 @@ class CampaignSession:
 
     def require_owner(self, client_id: str) -> ClientIdentity:
         identity = self.require_client(client_id)
-        if identity.role is not ClientRole.OWNER:
-            raise PermissionError("campaign owner permission required")
-        return identity
+        if identity.role is ClientRole.OWNER:
+            return identity
+        if self.manage_resolver is not None and self.manage_resolver(identity):
+            return identity
+        raise PermissionError("campaign management permission required")
 
     def leave(self, client_id: str) -> None:
         self.clients.pop(client_id, None)
@@ -69,7 +78,9 @@ class CampaignSession:
         identity = self.clients.get(client_id)
         if identity is None or identity.role is ClientRole.SPECTATOR:
             return False
-        return identity.role is ClientRole.OWNER or actor_id in identity.actor_ids
+        if identity.role is ClientRole.OWNER or actor_id in identity.actor_ids:
+            return True
+        return bool(self.control_resolver and self.control_resolver(identity, actor_id))
 
     async def dispatch(self, client_id: str, command: GameCommand):
         if not self.can_control(client_id, command.actor_id):
