@@ -1,4 +1,3 @@
-# src/dnd_rpg_engine/hosting/server.py
 from __future__ import annotations
 
 import os
@@ -18,9 +17,15 @@ def run(
     ),
     host: str = typer.Option(default="127.0.0.1"),
     port: int = typer.Option(default=8000, min=1, max=65535),
-    advanced: bool = typer.Option(default=True, help="Use AdvancedGameEngine for v1.2-v1.8 features."),
+    advanced: bool = typer.Option(default=True, help="Use AdvancedGameEngine for the complete v1.2-v2.5 profile."),
 ) -> None:
-    """Serve the complete v1.8 platform API and browser clients."""
+    """Serve the complete v2.5 platform API and browser clients.
+
+    Authentication, signing secrets, and bootstrap provisioning are controlled
+    by RPG_AUTH_REQUIRED, RPG_AUTH_SECRET, and RPG_BOOTSTRAP_KEY. Production
+    deployments should use PostgreSQL, TLS at the ingress/reverse proxy, and a
+    secret manager rather than command-line secrets.
+    """
     import uvicorn
 
     resolved_database = database_url or os.environ.get("RPG_DATABASE_URL", "rpg_engine.sqlite3")
