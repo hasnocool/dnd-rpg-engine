@@ -8,6 +8,7 @@ from dnd_rpg_engine.rulesets.srd_5_2_1.compiler import (
     compile_document,
     compile_srd_catalog,
 )
+from dnd_rpg_engine.rulesets.srd_5_2_1.lifecycle import build_srd_character_lifecycle
 from dnd_rpg_engine.rulesets.srd_5_2_1.pack import build_srd_5_2_1_pack
 from dnd_rpg_engine.rulesets.srd_5_2_1.rules import (
     SRD_5_2_1_RULESET,
@@ -58,6 +59,7 @@ __all__ = [
     "compile_document",
     "compile_srd_catalog",
     "encounter_budget",
+    "build_srd_character_lifecycle",
     "entity_proficiency_bonus",
     "extended_travel_dc",
     "fetch_official_srd_pdf",
