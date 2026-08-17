@@ -6,6 +6,7 @@ import io
 import json
 import re
 import zipfile
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -28,6 +29,19 @@ from dnd_rpg_engine.core.models import Entity, GameConfig
 from dnd_rpg_engine.core.rules import RuleSet
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{1,63}$")
+
+
+def _canonicalize(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, dict):
+        return {str(key): _canonicalize(item) for key, item in sorted(value.items(), key=lambda row: str(row[0]))}
+    if isinstance(value, (set, frozenset)):
+        normalized = [_canonicalize(item) for item in value]
+        return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+    if isinstance(value, (list, tuple)):
+        return [_canonicalize(item) for item in value]
+    return value
 
 
 class ModManifest(BaseModel):
@@ -102,10 +116,11 @@ class ContentPack(BaseModel):
     personalities: dict[str, Personality] = Field(default_factory=dict)
     encounters: dict[str, EncounterTemplate] = Field(default_factory=dict)
     rules: dict[str, RuleDocument] = Field(default_factory=dict)
+    rules_data: dict[str, Any] = Field(default_factory=dict)
     assets: dict[str, str] = Field(default_factory=dict)
 
     def canonical_json(self) -> str:
-        return json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        return json.dumps(_canonicalize(self.model_dump(mode="python")), sort_keys=True, separators=(",", ":"))
 
     def content_hash(self) -> str:
         return hashlib.sha256(self.canonical_json().encode()).hexdigest()
@@ -133,6 +148,7 @@ class ContentPack(BaseModel):
                 "personalities",
                 "encounters",
                 "rules",
+                "rules_data",
                 "assets",
             ):
                 archive.writestr(f"content/{section}.json", json.dumps(payload[section], indent=2, sort_keys=True))
@@ -168,6 +184,7 @@ class ContentPack(BaseModel):
                 "personalities",
                 "encounters",
                 "rules",
+                "rules_data",
                 "assets",
             ):
                 path = f"content/{section}.json"

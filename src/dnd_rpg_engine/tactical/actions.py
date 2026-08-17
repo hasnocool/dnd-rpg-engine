@@ -12,6 +12,7 @@ class ActionDefinition(BaseModel):
     attack_ability: str = "strength"
     damage: str = "1d6"
     damage_type: str = "physical"
+    proficiency_key: str | None = None
     tags: set[str] = Field(default_factory=set)
 
 

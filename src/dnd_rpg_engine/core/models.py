@@ -62,6 +62,7 @@ class ResourcePool(BaseModel):
 
     hp: int = Field(default=10, ge=0)
     max_hp: int = Field(default=10, ge=1)
+    temp_hp: int = Field(default=0, ge=0)
     energy: int = Field(default=0, ge=0)
     max_energy: int = Field(default=0, ge=0)
 
@@ -71,9 +72,21 @@ class ResourcePool(BaseModel):
         return max(0, value)
 
     def apply_damage(self, amount: int) -> int:
+        incoming = max(0, amount)
+        absorbed = min(self.temp_hp, incoming)
+        self.temp_hp -= absorbed
+        incoming -= absorbed
         before = self.hp
-        self.hp = max(0, self.hp - max(0, amount))
-        return before - self.hp
+        self.hp = max(0, self.hp - incoming)
+        return absorbed + (before - self.hp)
+
+    def grant_temp_hp(self, amount: int) -> int:
+        """Replace temporary HP only when the new pool is larger; temporary HP never stacks."""
+        value = max(0, amount)
+        before = self.temp_hp
+        if value > self.temp_hp:
+            self.temp_hp = value
+        return self.temp_hp - before
 
     def heal(self, amount: int) -> int:
         before = self.hp
