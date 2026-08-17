@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from datetime import timedelta
-
 import pytest
 
 from dnd_rpg_engine.security import (
-    AuthorizationRequest,
     IdentityService,
     Permission,
     ResourceRef,
@@ -41,40 +38,51 @@ async def test_identity_rbac_scope_and_session_revocation() -> None:
     player_token, player_principal = await service.issue_session(player.id)
     organization = await service.create_organization(owner_principal, "Guild")
     workspace = await service.create_workspace(owner_principal, organization.id, "World")
+
+    campaign = await service.register_resource(
+        owner_principal,
+        ResourceRef(
+            type="campaign",
+            id="campaign-1",
+            campaign_id="campaign-1",
+            organization_id=organization.id,
+            workspace_id=workspace.id,
+            owner_user_id=owner.id,
+        ),
+    )
     await service.grant_membership(
         owner_principal,
         user_id=player.id,
         scope_type=ScopeType.CAMPAIGN,
-        scope_id="campaign-1",
+        scope_id=campaign.id,
         role=TenantRole.PLAYER,
     )
 
-    campaign = ResourceRef(type="campaign", id="campaign-1", campaign_id="campaign-1")
     assert service.can(player_principal, Permission.CAMPAIGN_READ, campaign)
     assert not service.can(player_principal, Permission.CAMPAIGN_MANAGE, campaign)
+    assert service.can(owner_principal, Permission.CAMPAIGN_MANAGE, campaign)
     owned_actor = ResourceRef(
         type="character",
         id="hero",
-        campaign_id="campaign-1",
+        campaign_id=campaign.id,
+        organization_id=organization.id,
+        workspace_id=workspace.id,
         actor_owner_user_id="player",
     )
     assert service.can(player_principal, Permission.CHARACTER_CONTROL, owned_actor)
 
-    org_resource = ResourceRef(
-        type="organization",
-        id=organization.id,
-        organization_id=organization.id,
-        owner_user_id="owner",
-    )
+    org_resource = service.resource_for_scope(ScopeType.ORGANIZATION, organization.id)
     assert service.can(owner_principal, Permission.ORGANIZATION_MANAGE, org_resource)
-    workspace_resource = ResourceRef(
-        type="workspace",
-        id=workspace.id,
-        organization_id=organization.id,
-        workspace_id=workspace.id,
-        owner_user_id="owner",
-    )
+    workspace_resource = service.resource_for_scope(ScopeType.WORKSPACE, workspace.id)
     assert service.can(owner_principal, Permission.WORKSPACE_MANAGE, workspace_resource)
+
+    # Resource ancestry is persistent, not reconstructed from caller claims.
+    reloaded = IdentityService(SessionTokenService("x" * 48))
+    await reloaded.initialize(store)
+    stored_campaign = reloaded.resource_for_scope(ScopeType.CAMPAIGN, campaign.id)
+    assert stored_campaign.organization_id == organization.id
+    assert stored_campaign.workspace_id == workspace.id
+    assert stored_campaign.owner_user_id == owner.id
 
     assert service.authenticate(owner_token).user_id == "owner"
     assert service.authenticate(player_token).user_id == "player"
