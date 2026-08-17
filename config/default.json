@@ -1,0 +1,14 @@
+{
+  "time_mode": "hybrid",
+  "ticks_per_second": 20,
+  "time_scale": 1.0,
+  "world_minutes_per_sim_second": 1.0,
+  "default_action_time_seconds": 6.0,
+  "player_decision_timeout_seconds": 10.0,
+  "pause_when_player_ready": true,
+  "enemies_continue_while_player_idle": true,
+  "timeout_behavior": "continue_timeline",
+  "reaction_timeout_seconds": 3.0,
+  "snapshot_every_events": 100,
+  "seed": 1
+}

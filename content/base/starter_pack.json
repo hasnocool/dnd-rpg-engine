@@ -1,0 +1,416 @@
+{
+  "manifest": {
+    "id": "starter.world",
+    "name": "Starter World",
+    "version": "1.0.0",
+    "engine_version": ">=1.0.0",
+    "author": "dnd-rpg-engine contributors",
+    "description": "Original example content for exercising the engine.",
+    "license": "CC0-1.0",
+    "dependencies": {},
+    "tags": [
+      "fantasy",
+      "example"
+    ]
+  },
+  "campaigns": {
+    "starter": {
+      "id": "starter",
+      "name": "Starter Campaign",
+      "description": "",
+      "config": {
+        "time_mode": "hybrid",
+        "ticks_per_second": 20,
+        "time_scale": 1.0,
+        "world_minutes_per_sim_second": 1.0,
+        "default_action_time_seconds": 6.0,
+        "player_decision_timeout_seconds": 8.0,
+        "pause_when_player_ready": true,
+        "enemies_continue_while_player_idle": true,
+        "timeout_behavior": "continue_timeline",
+        "reaction_timeout_seconds": 3.0,
+        "snapshot_every_events": 100,
+        "seed": 42
+      },
+      "active_rule_id": "starter_rules",
+      "start_map_id": "starter_world",
+      "entities": [
+        {
+          "id": "hero",
+          "name": "Hero",
+          "kind": "player",
+          "controller": "human",
+          "owner_id": null,
+          "stats": {
+            "strength": 10,
+            "dexterity": 10,
+            "constitution": 10,
+            "intelligence": 10,
+            "wisdom": 10,
+            "charisma": 10
+          },
+          "resources": {
+            "hp": 30,
+            "max_hp": 30,
+            "energy": 5,
+            "max_energy": 5
+          },
+          "position": {
+            "area_id": "courtyard",
+            "node_id": null,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "tags": [],
+          "components": {},
+          "alive": true
+        },
+        {
+          "id": "clockwork_rival",
+          "name": "Clockwork Rival",
+          "kind": "creature",
+          "controller": "ai",
+          "owner_id": null,
+          "stats": {
+            "strength": 10,
+            "dexterity": 10,
+            "constitution": 10,
+            "intelligence": 10,
+            "wisdom": 10,
+            "charisma": 10
+          },
+          "resources": {
+            "hp": 22,
+            "max_hp": 22,
+            "energy": 0,
+            "max_energy": 0
+          },
+          "position": {
+            "area_id": "courtyard",
+            "node_id": null,
+            "x": 1.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "tags": [],
+          "components": {
+            "ai": {
+              "target_id": "hero",
+              "action_id": "basic_attack"
+            }
+          },
+          "alive": true
+        },
+        {
+          "id": "guide",
+          "name": "Town Guide",
+          "kind": "npc",
+          "controller": "script",
+          "owner_id": null,
+          "stats": {
+            "strength": 10,
+            "dexterity": 10,
+            "constitution": 10,
+            "intelligence": 10,
+            "wisdom": 10,
+            "charisma": 10
+          },
+          "resources": {
+            "hp": 10,
+            "max_hp": 10,
+            "energy": 0,
+            "max_energy": 0
+          },
+          "position": {
+            "area_id": "market",
+            "node_id": null,
+            "x": 1.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "tags": [],
+          "components": {},
+          "alive": true
+        }
+      ],
+      "flags": {
+        "starter_loaded": true
+      }
+    }
+  },
+  "creatures": {
+    "clockwork_rival": {
+      "id": "clockwork_rival",
+      "name": "Clockwork Rival",
+      "tier": 1,
+      "hp": 22,
+      "stats": {},
+      "actions": [
+        "basic_attack"
+      ],
+      "tags": [],
+      "ai_profile": "hostile_basic"
+    }
+  },
+  "actions": {
+    "focus_action": {
+      "id": "focus_action",
+      "name": "Focused Action",
+      "time_cost": 6.0,
+      "range": 1.5,
+      "attack_ability": "strength",
+      "damage": "1d6",
+      "damage_type": "physical",
+      "tags": []
+    }
+  },
+  "conditions": {
+    "bright_aura": {
+      "id": "bright_aura",
+      "name": "Bright Aura",
+      "attack_modifier": 0,
+      "armor_modifier": 1,
+      "movement_multiplier": 1.0,
+      "blocks_actions": false,
+      "periodic_damage": null,
+      "periodic_interval": null
+    }
+  },
+  "items": {
+    "small_restorative": {
+      "id": "small_restorative",
+      "name": "Small Restorative",
+      "value": 15,
+      "stackable": true,
+      "max_stack": 99,
+      "use_time": 4.0,
+      "heal": "1d6+1",
+      "energy_restore": 0,
+      "applies_condition": null,
+      "tags": []
+    }
+  },
+  "spells": {
+    "glimmer": {
+      "id": "glimmer",
+      "name": "Glimmer",
+      "cast_time": 3.0,
+      "range": 12.0,
+      "energy_cost": 1,
+      "attack_ability": "intelligence",
+      "damage": "1d4",
+      "heal": null,
+      "damage_type": "arcane",
+      "applies_condition": null,
+      "duration": null,
+      "interruptible": true,
+      "tags": []
+    }
+  },
+  "maps": {
+    "starter_world": {
+      "id": "starter_world",
+      "name": "Starter World",
+      "nodes": {
+        "courtyard": {
+          "id": "courtyard",
+          "name": "Courtyard",
+          "description": "",
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0,
+          "tags": [],
+          "scene_binding": null
+        },
+        "market": {
+          "id": "market",
+          "name": "Market",
+          "description": "",
+          "x": 1.0,
+          "y": 0.0,
+          "z": 0.0,
+          "tags": [],
+          "scene_binding": null
+        },
+        "tower": {
+          "id": "tower",
+          "name": "Old Tower",
+          "description": "",
+          "x": 2.0,
+          "y": 1.0,
+          "z": 0.0,
+          "tags": [],
+          "scene_binding": null
+        }
+      },
+      "edges": [
+        {
+          "source": "courtyard",
+          "target": "market",
+          "travel_time": 2.0,
+          "bidirectional": true,
+          "requirements": {}
+        },
+        {
+          "source": "market",
+          "target": "tower",
+          "travel_time": 4.0,
+          "bidirectional": true,
+          "requirements": {}
+        }
+      ]
+    }
+  },
+  "dialogues": {
+    "guide_intro": {
+      "id": "guide_intro",
+      "start_node": "hello",
+      "nodes": {
+        "hello": {
+          "id": "hello",
+          "speaker_id": "guide",
+          "text": "Welcome to the market.",
+          "options": [
+            {
+              "id": "continue",
+              "text": "Continue",
+              "next_node": null,
+              "requirements": [],
+              "set_flags": {},
+              "quest_id": "visit_tower"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "quests": {
+    "visit_tower": {
+      "id": "visit_tower",
+      "name": "Visit the Tower",
+      "description": "Travel to the old tower.",
+      "objectives": [
+        {
+          "id": "visit",
+          "type": "visit",
+          "target_id": "tower",
+          "required": 1,
+          "progress": 0
+        }
+      ],
+      "reward_currency": 20,
+      "set_flags": {}
+    }
+  },
+  "npcs": {
+    "guide": {
+      "entity_id": "guide",
+      "role": "guide",
+      "dialogue_id": "guide_intro",
+      "shop_id": null,
+      "faction_id": "town",
+      "personality_id": null,
+      "schedule_id": "guide_daily",
+      "knowledge_tags": []
+    }
+  },
+  "shops": {
+    "market_shop": {
+      "id": "market_shop",
+      "name": "Market Shop",
+      "keeper_id": "guide",
+      "stock": {
+        "small_restorative": 5
+      },
+      "buy_multiplier": 1.0,
+      "sell_multiplier": 0.5,
+      "restock_world_minutes": 1440.0,
+      "last_restock_at": 0.0
+    }
+  },
+  "factions": {
+    "town": {
+      "id": "town",
+      "name": "Town Residents",
+      "tags": [],
+      "resources": 100.0,
+      "influence": 50.0
+    }
+  },
+  "schedules": {
+    "guide_daily": {
+      "id": "guide_daily",
+      "entries": [
+        {
+          "start_minute": 480,
+          "end_minute": 1080,
+          "location_id": "market",
+          "activity": "work"
+        }
+      ]
+    }
+  },
+  "dynamic_events": {
+    "first_evening": {
+      "id": "first_evening",
+      "event_type": "world.first_evening",
+      "predicates": [
+        {
+          "kind": "world_minute",
+          "key": null,
+          "operator": "gte",
+          "value": 1080
+        }
+      ],
+      "payload": {
+        "message": "Evening has arrived."
+      },
+      "once": true
+    }
+  },
+  "personalities": {
+    "friendly_guide": {
+      "id": "friendly_guide",
+      "traits": {
+        "helpful": 0.8
+      },
+      "goals": [
+        "help visitors"
+      ],
+      "fears": [],
+      "speech_style": "warm"
+    }
+  },
+  "encounters": {
+    "starter_encounter": {
+      "id": "starter_encounter",
+      "tags": [
+        "starter"
+      ],
+      "opponent_templates": [
+        "clockwork_rival"
+      ],
+      "min_tier": 1,
+      "max_tier": 3,
+      "weight": 1
+    }
+  },
+  "rules": {
+    "starter_rules": {
+      "id": "starter_rules",
+      "name": "Starter Rules",
+      "settings": {
+        "base_defense": 10,
+        "critical_success_roll": 20,
+        "critical_failure_roll": 1,
+        "round_seconds": 6.0
+      },
+      "expressions": {}
+    }
+  },
+  "assets": {
+    "hero": "hero",
+    "clockwork_rival": "clockwork_rival"
+  }
+}

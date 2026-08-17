@@ -1,0 +1,12 @@
+# docker-compose.yml
+services:
+  rpg-engine:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - rpg-data:/data
+    restart: unless-stopped
+
+volumes:
+  rpg-data:
