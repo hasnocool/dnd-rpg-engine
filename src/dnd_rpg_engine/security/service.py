@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 from dnd_rpg_engine.security.models import (
     AuditRecord,
@@ -22,12 +21,15 @@ from dnd_rpg_engine.security.tokens import SessionTokenService, TokenError
 
 
 class IdentityService:
-    """Persistent identity, tenancy, session and audit service.
+    """Persistent identity, tenancy, session, resource and audit service.
 
-    The service intentionally stores authorization state server-side. Signed
-    session tokens identify a user/session but never embed effective roles, so
-    revoking a membership takes effect without waiting for token expiry.
+    Signed session tokens identify a user/session but never embed effective
+    permissions. Roles and resource ancestry are resolved from current
+    server-side state, so membership changes take effect immediately and a
+    campaign/project can inherit organization/workspace authority safely.
     """
+
+    resource_namespace = "identity.resource"
 
     def __init__(
         self,
@@ -43,8 +45,13 @@ class IdentityService:
         self.workspaces: dict[str, Workspace] = {}
         self.memberships: dict[str, Membership] = {}
         self.sessions: dict[str, SessionRecord] = {}
+        self.resources: dict[str, ResourceRef] = {}
         self.audit_records: dict[str, AuditRecord] = {}
         self._initialized = False
+
+    @staticmethod
+    def resource_key(scope_type: ScopeType, scope_id: str) -> str:
+        return f"{scope_type.value}:{scope_id}"
 
     async def initialize(self, store: Any) -> None:
         if self._initialized and self.store is store:
@@ -66,6 +73,10 @@ class IdentityService:
         self.sessions = {
             key: SessionRecord.model_validate(value)
             for key, value in (await store.list_json("identity.session")).items()
+        }
+        self.resources = {
+            key: ResourceRef.model_validate(value)
+            for key, value in (await store.list_json(self.resource_namespace)).items()
         }
         self.audit_records = {
             key: AuditRecord.model_validate(value)
@@ -106,9 +117,17 @@ class IdentityService:
             role=TenantRole.OWNER,
             granted_by=principal.user_id,
         )
+        resource = ResourceRef(
+            type="organization",
+            id=organization.id,
+            owner_user_id=principal.user_id,
+            organization_id=organization.id,
+        )
         self.memberships[membership.id] = membership
+        self.resources[self.resource_key(ScopeType.ORGANIZATION, organization.id)] = resource
         await self._put("identity.organization", organization.id, organization)
         await self._put("identity.membership", membership.id, membership)
+        await self._put(self.resource_namespace, self.resource_key(ScopeType.ORGANIZATION, organization.id), resource)
         await self.audit(principal, "organization.create", "organization", organization.id)
         return organization
 
@@ -117,13 +136,75 @@ class IdentityService:
         self.authorize(
             principal,
             Permission.ORGANIZATION_MANAGE,
-            ResourceRef(type="organization", id=organization_id, owner_user_id=organization.owner_user_id),
+            self.resource_for_scope(ScopeType.ORGANIZATION, organization_id),
         )
         workspace = Workspace(organization_id=organization_id, name=name)
+        resource = ResourceRef(
+            type="workspace",
+            id=workspace.id,
+            owner_user_id=organization.owner_user_id,
+            organization_id=organization_id,
+            workspace_id=workspace.id,
+        )
         self.workspaces[workspace.id] = workspace
+        self.resources[self.resource_key(ScopeType.WORKSPACE, workspace.id)] = resource
         await self._put("identity.workspace", workspace.id, workspace)
+        await self._put(self.resource_namespace, self.resource_key(ScopeType.WORKSPACE, workspace.id), resource)
         await self.audit(principal, "workspace.create", "workspace", workspace.id, metadata={"organization_id": organization_id})
         return workspace
+
+    async def register_resource(
+        self,
+        principal: Principal,
+        resource: ResourceRef,
+        *,
+        scope_type: ScopeType | None = None,
+    ) -> ResourceRef:
+        """Register ownership/ancestry for an authoritative tenant resource.
+
+        A user can directly claim a newly-created resource only for themselves.
+        Registering a resource owned by somebody else requires management rights
+        on its nearest known parent scope. This keeps campaign/project tenancy
+        explicit instead of inferring authority from caller-supplied IDs.
+        """
+        parsed_scope = scope_type or self._scope_for_resource(resource)
+        if parsed_scope is None:
+            raise ValueError("resource type is not a tenant scope")
+        if resource.owner_user_id is None:
+            resource.owner_user_id = principal.user_id
+        if resource.owner_user_id != principal.user_id:
+            parent = self._parent_resource(resource)
+            if parent is None:
+                raise PermissionError("cannot register a resource owned by another user without a managed parent scope")
+            self.authorize(principal, Permission.MEMBERSHIP_MANAGE, parent)
+        else:
+            parent = self._parent_resource(resource)
+            if parent is not None and not self.can(principal, Permission.CAMPAIGN_CREATE, parent):
+                # Direct ownership is sufficient for an unscoped personal
+                # resource. Once a parent scope is supplied, the parent must
+                # also allow resource creation.
+                if not self.can(principal, Permission.WORKSPACE_MANAGE, parent) and not self.can(
+                    principal, Permission.ORGANIZATION_MANAGE, parent
+                ):
+                    raise PermissionError("resource parent scope does not permit creation")
+        key = self.resource_key(parsed_scope, resource.id)
+        existing = self.resources.get(key)
+        if existing is not None and existing.owner_user_id not in {None, resource.owner_user_id}:
+            raise PermissionError("resource ownership cannot be replaced")
+        self.resources[key] = resource.model_copy(deep=True)
+        await self._put(self.resource_namespace, key, resource)
+        await self.audit(
+            principal,
+            "resource.register",
+            resource.type,
+            resource.id,
+            metadata={
+                "scope_type": parsed_scope.value,
+                "organization_id": resource.organization_id,
+                "workspace_id": resource.workspace_id,
+            },
+        )
+        return self.resources[key]
 
     async def grant_membership(
         self,
@@ -135,8 +216,7 @@ class IdentityService:
         role: TenantRole,
     ) -> Membership:
         resource = self.resource_for_scope(scope_type, scope_id)
-        permission = Permission.MEMBERSHIP_MANAGE
-        self.authorize(principal, permission, resource)
+        self.authorize(principal, Permission.MEMBERSHIP_MANAGE, resource)
         if user_id not in self.users:
             raise KeyError("unknown user")
         existing = next(
@@ -182,6 +262,9 @@ class IdentityService:
         )
 
     def resource_for_scope(self, scope_type: ScopeType, scope_id: str) -> ResourceRef:
+        stored = self.resources.get(self.resource_key(scope_type, scope_id))
+        if stored is not None:
+            return stored.model_copy(deep=True)
         if scope_type is ScopeType.ORGANIZATION:
             organization = self.organizations.get(scope_id)
             return ResourceRef(
@@ -294,3 +377,22 @@ class IdentityService:
 
     def audit_log(self, *, limit: int = 200) -> list[AuditRecord]:
         return sorted(self.audit_records.values(), key=lambda value: (value.at, value.id), reverse=True)[:limit]
+
+    @staticmethod
+    def _scope_for_resource(resource: ResourceRef) -> ScopeType | None:
+        if resource.type == "organization":
+            return ScopeType.ORGANIZATION
+        if resource.type == "workspace":
+            return ScopeType.WORKSPACE
+        if resource.type == "campaign" or resource.campaign_id == resource.id:
+            return ScopeType.CAMPAIGN
+        if resource.type == "project" or resource.project_id == resource.id:
+            return ScopeType.PROJECT
+        return None
+
+    def _parent_resource(self, resource: ResourceRef) -> ResourceRef | None:
+        if resource.workspace_id and not (resource.type == "workspace" and resource.id == resource.workspace_id):
+            return self.resource_for_scope(ScopeType.WORKSPACE, resource.workspace_id)
+        if resource.organization_id and not (resource.type == "organization" and resource.id == resource.organization_id):
+            return self.resource_for_scope(ScopeType.ORGANIZATION, resource.organization_id)
+        return None
