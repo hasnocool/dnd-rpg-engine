@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from dnd_rpg_engine.core.dice import DeterministicDice
 from dnd_rpg_engine.core.models import Entity
 from dnd_rpg_engine.core.rules import RuleSet
+from dnd_rpg_engine.rules.runtime import DamagePacket, RulesRuntime, create_runtime
 from dnd_rpg_engine.tactical.actions import ActionDefinition
-from dnd_rpg_engine.tactical.conditions import ActiveCondition, ConditionRegistry, RollEffect
+from dnd_rpg_engine.tactical.conditions import ActiveCondition, ConditionRegistry
 
 
 @dataclass(slots=True)
@@ -36,33 +37,56 @@ class AttackResolution:
     hit: bool
     damage: int
     critical: bool
+    roll_mode: str = "normal"
+    attack_trace: dict | None = None
+    damage_trace: tuple[str, ...] = ()
 
 
 class CombatSystem:
+    """Compatibility facade over the active typed RulesRuntime.
+
+    Engine callers keep using CombatSystem while concrete rules interpretation
+    lives behind the runtime boundary. Assigning ``combat.rules`` hot-swaps the
+    runtime using the registered ruleset factory.
+    """
+
     def __init__(self, dice: DeterministicDice, conditions: ConditionRegistry, rules: RuleSet | None = None) -> None:
         self.dice = dice
         self.conditions = conditions
-        self.rules = rules or RuleSet()
+        self._rules = rules or RuleSet()
+        self.runtime: RulesRuntime = create_runtime(self._rules, self.dice, self.conditions)
         self.encounters: dict[str, Encounter] = {}
 
+    @property
+    def rules(self) -> RuleSet:
+        return self._rules
+
+    @rules.setter
+    def rules(self, value: RuleSet) -> None:
+        previous_effects = getattr(self.runtime, "effects", None) if hasattr(self, "runtime") else None
+        previous_economy = getattr(self.runtime, "action_economy", {}) if hasattr(self, "runtime") else {}
+        previous_reactions = getattr(self.runtime, "reactions", {}) if hasattr(self, "runtime") else {}
+        self._rules = value
+        self.runtime = create_runtime(value, self.dice, self.conditions)
+        if previous_effects is not None:
+            self.runtime.effects = previous_effects
+        self.runtime.action_economy.update(previous_economy)
+        self.runtime.reactions.update(previous_reactions)
+
+    @property
+    def effects(self):
+        return self.runtime.effects
+
+    @property
+    def reactions(self):
+        return self.runtime.reactions
+
+    @property
+    def action_economy(self):
+        return self.runtime.action_economy
+
     def defense(self, target: Entity, active_conditions: list[ActiveCondition] | None = None) -> int:
-        armor = target.component("armor")
-        dexterity_modifier = target.stats.modifier("dexterity")
-        if armor.get("fixed_ac") is not None:
-            base = int(armor["fixed_ac"])
-        else:
-            base_ac = int(armor.get("base_ac", self.rules.base_defense))
-            dex_cap = armor.get("dex_cap")
-            dex_bonus = dexterity_modifier if bool(armor.get("add_dexterity", True)) else 0
-            if dex_cap is not None:
-                dex_bonus = min(dex_bonus, int(dex_cap))
-            base = base_ac + dex_bonus
-        base += int(armor.get("shield_bonus", 0)) + int(armor.get("bonus", 0))
-        for active in active_conditions or []:
-            definition = self.conditions.get(active.condition_id)
-            if definition is not None:
-                base += definition.armor_modifier * active.stacks
-        return base
+        return self.runtime.defense(target, active_conditions)
 
     def resolve_attack(
         self,
@@ -73,83 +97,30 @@ class CombatSystem:
         active_conditions: list[ActiveCondition] | None = None,
         target_conditions: list[ActiveCondition] | None = None,
     ) -> AttackResolution:
-        roll_mode = self._attack_roll_mode(active_conditions or [], target_conditions or [])
-        raw_rolls = self._roll_d20(attacker.id, roll_mode)
-        raw = self._select_roll(raw_rolls, roll_mode)
-        modifier = attacker.stats.modifier(action.attack_ability)
-        modifier += self._action_proficiency_bonus(attacker, action)
-        for active in active_conditions or []:
-            definition = self.conditions.get(active.condition_id)
-            if definition is not None:
-                modifier += definition.attack_modifier * active.stacks
-        total = raw + modifier
-        defense = self.defense(target, target_conditions)
-        hit = raw >= self.rules.critical_success_roll or (raw != self.rules.critical_failure_roll and total >= defense)
-        critical = raw >= self.rules.critical_success_roll and hit
-        damage = 0
-        if hit:
-            result = self.dice.roll(action.damage, stream=f"combat:damage:{attacker.id}:{action.id}")
-            damage = max(self.rules.minimum_damage, result.total + attacker.stats.modifier(action.attack_ability))
-            if critical:
-                extra = self.dice.roll(action.damage, stream=f"combat:critical:{attacker.id}:{action.id}")
-                damage += max(0, extra.total)
-        return AttackResolution(raw, raw_rolls, modifier, total, defense, hit, damage, critical)
+        outcome = self.runtime.resolve_attack(
+            attacker,
+            target,
+            action,
+            active_conditions=active_conditions,
+            target_conditions=target_conditions,
+        )
+        return AttackResolution(
+            roll=outcome.roll,
+            raw_rolls=tuple(outcome.raw_rolls),
+            modifier=outcome.modifier,
+            total=outcome.total,
+            defense=outcome.defense,
+            hit=outcome.hit,
+            damage=outcome.damage,
+            critical=outcome.critical,
+            roll_mode=outcome.roll_mode,
+            attack_trace=outcome.attack_trace.model_dump(mode="json"),
+            damage_trace=tuple(outcome.damage_trace),
+        )
 
     def apply_damage_traits(self, target: Entity, amount: int, damage_type: str) -> int:
-        defenses = target.component("defenses")
-        normalized = damage_type.lower()
-        if normalized in {str(value).lower() for value in defenses.get("immunities", [])}:
-            return 0
-        if normalized in {str(value).lower() for value in defenses.get("vulnerabilities", [])}:
-            return amount * 2
-        if normalized in {str(value).lower() for value in defenses.get("resistances", [])}:
-            return amount // 2
-        return amount
-
-    def _action_proficiency_bonus(self, attacker: Entity, action: ActionDefinition) -> int:
-        if not action.proficiency_key:
-            return 0
-        proficiencies = attacker.component("proficiencies")
-        keys = set(proficiencies.get("actions", [])) | set(proficiencies.get("categories", []))
-        if action.proficiency_key not in keys:
-            return 0
-        explicit = proficiencies.get("bonus")
-        if explicit is not None:
-            return int(explicit)
-        level = max(1, int(attacker.component("progression").get("level", 1)))
-        return 2 + ((level - 1) // 4)
-
-    def _attack_roll_mode(
-        self,
-        attacker_conditions: list[ActiveCondition],
-        target_conditions: list[ActiveCondition],
-    ) -> RollEffect:
-        effects: list[RollEffect] = []
-        for active in attacker_conditions:
-            definition = self.conditions.get(active.condition_id)
-            if definition and definition.attack_roll_mode != "normal":
-                effects.append(definition.attack_roll_mode)
-        for active in target_conditions:
-            definition = self.conditions.get(active.condition_id)
-            if definition and definition.attacks_against_mode != "normal":
-                effects.append(definition.attacks_against_mode)
-        has_advantage = "advantage" in effects
-        has_disadvantage = "disadvantage" in effects
-        if has_advantage == has_disadvantage:
-            return "normal"
-        return "advantage" if has_advantage else "disadvantage"
-
-    def _roll_d20(self, attacker_id: str, mode: RollEffect) -> tuple[int, ...]:
-        first = self.dice.d20(stream=f"combat:attack:{attacker_id}")
-        if mode == "normal":
-            return (first,)
-        second = self.dice.d20(stream=f"combat:attack:{attacker_id}")
-        return (first, second)
-
-    @staticmethod
-    def _select_roll(rolls: tuple[int, ...], mode: RollEffect) -> int:
-        if mode == "advantage":
-            return max(rolls)
-        if mode == "disadvantage":
-            return min(rolls)
-        return rolls[0]
+        outcome = self.runtime.resolve_damage(
+            target,
+            DamagePacket(amount=max(0, amount), damage_type=damage_type),
+        )
+        return outcome.after_traits
