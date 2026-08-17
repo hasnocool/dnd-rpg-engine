@@ -6,9 +6,9 @@ The repository intentionally separates rules/simulation from presentation. The g
 
 See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SRD-5.2.md).
 
-## Current platform: 3.9.0
+## Current platform: package 3.9.0 · roadmap through v4.0
 
-The implemented roadmap spans v0.1 through v3.9, from the original simulation kernel through persistent-world foundations and a complete campaign-authoring/session workbench.
+The released package remains `3.9.0`, while the implemented product roadmap on `main` now spans v0.1 through the **v4.0 actor-experience milestone**. The v4.0 feature set is documented as unreleased until the package metadata is intentionally advanced in a release change.
 
 | Milestone | Key Features Implemented |
 | --- | --- |
@@ -47,6 +47,7 @@ The implemented roadmap spans v0.1 through v3.9, from the original simulation ke
 | **v3.7 Campaign Automation** | schedules/dynamic-event observability tied to installed content and world clocks |
 | **v3.8 Multiplayer UX** | session lobby, roles/ownership visibility, party creation/membership operations |
 | **v3.9 Content Ecosystem** | installed-pack inventory, release browser, locks, dependency resolver, Creator/distribution workflow |
+| **v4.0 Hero & NPC Experience** | dedicated `/hero` workshop, lifecycle-backed hero creation/editing, character catalog/listing, owner-only NPC CRUD, NPC profile/entity synchronization, faction/personality/dialogue/shop/schedule wiring, Workbench navigation/command-palette integration |
 
 ## Three engine profiles
 
@@ -200,9 +201,25 @@ This is a **distributed-world foundation**, not a claim that one process automat
 
 ## Campaign Workbench
 
-The browser root is now a complete campaign operations surface. It provides campaign/session management, GM/player views, tactical play, character lifecycle controls, visual-runtime inspection, AI/knowledge diagnostics, automation observability, analytics/replay, and content/dependency management. See [`docs/WORKBENCH.md`](docs/WORKBENCH.md) for the v3.0–v3.9 flow and authority model.
+The browser root is a complete campaign operations surface. It provides campaign/session management, GM/player views, tactical play, character lifecycle controls, visual-runtime inspection, AI/knowledge diagnostics, automation observability, analytics/replay, and content/dependency management. See [`docs/WORKBENCH.md`](docs/WORKBENCH.md) for the v3.0–v4.0 product flow and authority model.
 
-Creator Studio at `/creator` keeps its visual map/rule editors and adds full `ContentPack` coverage, including typed scenes and a scene-flow graph.
+Creator Studio at `/creator` is the reusable content-authoring surface: visual maps, executable rule graphs, typed scenes, scene flow, and the complete `ContentPack` schema.
+
+## Hero & NPC Workshop
+
+The v4.0 actor-experience milestone adds `/hero` as a dedicated campaign-instance actor workspace rather than forcing heroes and NPCs through generic entity tools.
+
+For player characters it provides lifecycle-backed creation using the active class/equipment/rest/advancement catalog, safe editing of identity/presentation/base-stat fields, browsing/filtering, and direct links back into the normal authoritative lifecycle operations for XP, level-up, rests, resources, and equipment.
+
+For NPCs it provides owner-only create/read/update/delete operations over first-class `NPCProfile` data. Profile updates synchronize the live entity and can connect the NPC to factions, personalities, dialogue graphs, shops, schedules, AI profiles, positions, appearance, and knowledge tags.
+
+Creator Studio and the Hero & NPC Workshop intentionally serve different scopes:
+
+- `/creator` authors reusable pack content and templates;
+- `/hero` manages actors inside a running campaign instance;
+- `/` operates and plays the campaign.
+
+See [`docs/ACTORS_4_0.md`](docs/ACTORS_4_0.md) for the authority model and end-to-end actor workflow.
 
 ## Time is first-class
 
@@ -231,7 +248,8 @@ rpg-engine serve --host 127.0.0.1 --port 8000
 Then open:
 
 - `http://127.0.0.1:8000/` — Campaign Workbench;
-- `/creator` — Creator Studio, scene flow, and visual rule graphs;
+- `/hero` — Hero & NPC Workshop for campaign-instance actors;
+- `/creator` — Creator Studio, scene flow, full-pack editing, and visual rule graphs;
 - `/docs` — OpenAPI.
 
 Other local clients:
@@ -265,7 +283,7 @@ Workers use stable preferred placement plus PostgreSQL leases as the authoritati
 
 ## API notes
 
-The package release is `3.9.0`; the public transport namespace remains `/api/v1`.
+The package release is `3.9.0`; the public transport namespace remains `/api/v1`. The v4.0 milestone is currently an implemented, unreleased product milestone and does not change that namespace.
 
 Create a campaign:
 
@@ -285,6 +303,8 @@ Additional APIs include:
 
 ```text
 /api/v1/campaigns/{campaign_id}/characters
+/api/v1/campaigns/{campaign_id}/characters/catalog
+/api/v1/campaigns/{campaign_id}/npcs
 /api/v1/campaigns/{campaign_id}/rules/compile
 /api/v1/campaigns/{campaign_id}/scenes
 /api/v1/campaigns/{campaign_id}/director/proposals
@@ -298,13 +318,17 @@ Clients submit commands and consume authoritative results; they never calculate 
 
 ## Documentation
 
+- [`docs/API.md`](docs/API.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/CREATOR.md`](docs/CREATOR.md)
 - [`docs/TIMING.md`](docs/TIMING.md)
 - [`docs/RUNTIME_1_2_TO_1_5.md`](docs/RUNTIME_1_2_TO_1_5.md)
 - [`docs/RUNTIME_1_6_TO_1_8.md`](docs/RUNTIME_1_6_TO_1_8.md)
 - [`docs/RUNTIME_1_9_TO_3_0.md`](docs/RUNTIME_1_9_TO_3_0.md)
 - [`docs/WORKBENCH.md`](docs/WORKBENCH.md)
+- [`docs/ACTORS_4_0.md`](docs/ACTORS_4_0.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md)
 
 ## Development
 
