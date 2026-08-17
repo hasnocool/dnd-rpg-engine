@@ -45,6 +45,9 @@ class ConditionRegistry:
     def get(self, condition_id: str) -> ConditionDefinition | None:
         return self._definitions.get(condition_id)
 
+    def all(self) -> tuple[ConditionDefinition, ...]:
+        return tuple(self._definitions.values())
+
 
 def default_conditions() -> ConditionRegistry:
     registry = ConditionRegistry()

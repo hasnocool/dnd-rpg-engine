@@ -38,5 +38,9 @@ def install_content_pack(engine: GameEngine, pack: ContentPack) -> None:
         engine.personalities.register(personality.model_copy(deep=True))
     for encounter in pack.encounters.values():
         engine.encounter_generator.register(encounter.model_copy(deep=True))
+    register_scene = getattr(engine, "register_scene", None)
+    if callable(register_scene):
+        for scene in pack.scenes.values():
+            register_scene(scene.model_copy(deep=True))
     for rule_id, document in pack.rules.items():
         engine.rule_documents[rule_id] = document.model_copy(deep=True)

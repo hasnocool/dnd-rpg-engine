@@ -1,3 +1,4 @@
+# src/dnd_rpg_engine/core/world_engine.py
 from __future__ import annotations
 
 from typing import Any
@@ -20,11 +21,11 @@ from dnd_rpg_engine.runtime_sync.protocol import RuntimeSnapshot, RuntimeSynchro
 
 
 class WorldPlatformEngine(AdvancedGameEngine):
-    """Integrated v1.9-v3.0 profile layered on ``AdvancedGameEngine``.
+    """Integrated world-platform profile layered on ``AdvancedGameEngine``.
 
-    This profile adds executable authored rules, campaign orchestration,
-    knowledge authority, campaign-scale direction, and visual runtime sync while
-    retaining the same external command/event contract as earlier engines.
+    The profile keeps the server authoritative while exposing executable rules,
+    campaign orchestration, knowledge authority, AI direction, visual runtime
+    synchronization, and the v3.x Campaign Workbench control surfaces.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -87,6 +88,68 @@ class WorldPlatformEngine(AdvancedGameEngine):
 
     def director_proposals(self, *, max_results: int = 8) -> list[DirectorProposal]:
         return self.ai_director.proposals(self.state, orchestrator=self.orchestrator, max_results=max_results)
+
+    async def accept_director_proposal(self, proposal_id: str, *, note: str = "") -> dict[str, Any]:
+        """Record a GM-approved Director proposal through the authoritative engine.
+
+        Director proposals remain advisory. Acceptance records the decision and
+        applies only explicitly bounded pacing metadata such as pressure deltas;
+        encounter, quest, faction, and world mutations still flow through normal
+        commands/content systems.
+        """
+        proposal = next((value for value in self.director_proposals(max_results=64) if value.id == proposal_id), None)
+        if proposal is None:
+            raise KeyError(f"unknown director proposal: {proposal_id}")
+        pressure_before = float(self.state.metadata.get("director_pressure", 0.0))
+        pressure_delta_raw = proposal.payload.get("pressure_delta", 0.0)
+        pressure_delta = float(pressure_delta_raw) if isinstance(pressure_delta_raw, (int, float)) else 0.0
+        pressure_after = max(0.0, min(1.0, pressure_before + pressure_delta))
+        self.state.metadata["director_pressure"] = pressure_after
+        record = {
+            "proposal_id": proposal.id,
+            "kind": proposal.kind.value,
+            "decision": "accepted",
+            "simulation_time": self.state.simulation_time,
+            "utility": proposal.utility,
+            "payload": proposal.payload,
+            "reasons": proposal.reasons,
+            "note": note,
+            "pressure_before": pressure_before,
+            "pressure_after": pressure_after,
+        }
+        history = self.state.metadata.setdefault("director_decisions", [])
+        if not isinstance(history, list):
+            history = []
+            self.state.metadata["director_decisions"] = history
+        history.append(record)
+        del history[:-200]
+        await self._emit("director.proposal_accepted", target_id=proposal.id, payload=record)
+        await self.save()
+        return record
+
+    async def dismiss_director_proposal(self, proposal_id: str, *, note: str = "") -> dict[str, Any]:
+        proposal = next((value for value in self.director_proposals(max_results=64) if value.id == proposal_id), None)
+        if proposal is None:
+            raise KeyError(f"unknown director proposal: {proposal_id}")
+        record = {
+            "proposal_id": proposal.id,
+            "kind": proposal.kind.value,
+            "decision": "dismissed",
+            "simulation_time": self.state.simulation_time,
+            "utility": proposal.utility,
+            "payload": proposal.payload,
+            "reasons": proposal.reasons,
+            "note": note,
+        }
+        history = self.state.metadata.setdefault("director_decisions", [])
+        if not isinstance(history, list):
+            history = []
+            self.state.metadata["director_decisions"] = history
+        history.append(record)
+        del history[:-200]
+        await self._emit("director.proposal_dismissed", target_id=proposal.id, payload=record)
+        await self.save()
+        return record
 
     async def _execute_command(self, command: GameCommand) -> float:
         if isinstance(command, CustomCommand) and command.name == "rule.execute":

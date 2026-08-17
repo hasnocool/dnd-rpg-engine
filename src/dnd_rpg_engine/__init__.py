@@ -18,4 +18,4 @@ __all__ = [
     "WorldPlatformEngine",
     "default_character_lifecycle",
 ]
-__version__ = "3.0.0"
+__version__ = "3.9.0"

@@ -6,9 +6,9 @@ The repository intentionally separates rules/simulation from presentation. The g
 
 See [`docs/SRD_5_2_1.md`](docs/SRD_5_2_1.md) and [`NOTICE-SRD-5.2.md`](NOTICE-SRD-5.2.md).
 
-## Current platform: 3.0.0
+## Current platform: 3.9.0
 
-The implemented roadmap spans v0.1 through v3.0, from the original simulation kernel through executable authored rules and persistent-world foundations.
+The implemented roadmap spans v0.1 through v3.9, from the original simulation kernel through persistent-world foundations and a complete campaign-authoring/session workbench.
 
 | Milestone | Key Features Implemented |
 | --- | --- |
@@ -38,6 +38,15 @@ The implemented roadmap spans v0.1 through v3.0, from the original simulation ke
 | **v2.4 Visual Runtime SDK** | canonical/redacted snapshots, visual bindings (scene/sprite/model/animation), hash-verified deltas with base/target validation, transport-neutral |
 | **v2.5 Content Distribution** | semver metadata, dependency resolution/cycle detection, engine-version checks, topological install, content/lock hashes, signed releases, persistent registry, REST API |
 | **v3.0 Persistent Worlds** | shard registry with capacity/load/heartbeats, rendezvous-hash routing with region affinity, Lamport-ordered cross-shard messages, two-phase entity handoff (prepare/accept/commit/abort), canonical entity hashes, persistent distributed metadata |
+| **v3.1 Unified Workbench** | campaign library, GM console, knowledge-scoped player view, world/event inspection |
+| **v3.2 Tactical Session** | tactical renderer, authoritative action palette, encounter controls, character lifecycle workspace |
+| **v3.3 Full Creator** | typed scene content, scene-flow graph, all ContentPack sections exposed through Studio revisions/validation |
+| **v3.4 GM Intelligence** | Director decision workflow, pressure/decision history, knowledge-authority matrix |
+| **v3.5 Replay + Analytics** | event aggregation, health/activity summaries, rule-event inspection, timeline scrubber, event-source journal discovery |
+| **v3.6 Visual Runtime** | canonical/redacted runtime snapshot inspector, binding/hash visibility, shared tactical projection |
+| **v3.7 Campaign Automation** | schedules/dynamic-event observability tied to installed content and world clocks |
+| **v3.8 Multiplayer UX** | session lobby, roles/ownership visibility, party creation/membership operations |
+| **v3.9 Content Ecosystem** | installed-pack inventory, release browser, locks, dependency resolver, Creator/distribution workflow |
 
 ## Three engine profiles
 
@@ -115,7 +124,7 @@ There are three distinct AI roles:
 - the AI Game Master narrates authoritative events but cannot mutate truth directly;
 - `AIDirector` observes campaign-scale pacing and returns ranked proposals for encounters, recovery, quests, factions, world events, and decompression.
 
-The Director is intentionally proposal-only. A host policy or GM must translate an accepted proposal into ordinary authoritative actions.
+The Director is intentionally proposal-first. The v3.4 Workbench lets the owner explicitly accept/dismiss a proposal, records that decision, and applies only bounded safe proposal metadata such as pacing-pressure deltas. Concrete gameplay changes still flow through normal authoritative actions.
 
 ## Knowledge and client visibility
 
@@ -189,6 +198,12 @@ Cross-shard messages carry Lamport ordering and idempotency keys. `PersistentWor
 
 This is a **distributed-world foundation**, not a claim that one process automatically becomes an MMO cluster. Production transport, service discovery, observability, infrastructure capacity, and operations still belong to the deployment environment. The engine now supplies the deterministic routing/authority/persistence contracts those systems can build around.
 
+## Campaign Workbench
+
+The browser root is now a complete campaign operations surface. It provides campaign/session management, GM/player views, tactical play, character lifecycle controls, visual-runtime inspection, AI/knowledge diagnostics, automation observability, analytics/replay, and content/dependency management. See [`docs/WORKBENCH.md`](docs/WORKBENCH.md) for the v3.0–v3.9 flow and authority model.
+
+Creator Studio at `/creator` keeps its visual map/rule editors and adds full `ContentPack` coverage, including typed scenes and a scene-flow graph.
+
 ## Time is first-class
 
 The scheduler supports:
@@ -215,8 +230,8 @@ rpg-engine serve --host 127.0.0.1 --port 8000
 
 Then open:
 
-- `http://127.0.0.1:8000/` — browser client;
-- `/creator` — Creator Studio and visual rule graphs;
+- `http://127.0.0.1:8000/` — Campaign Workbench;
+- `/creator` — Creator Studio, scene flow, and visual rule graphs;
 - `/docs` — OpenAPI.
 
 Other local clients:
@@ -250,7 +265,7 @@ Workers use stable preferred placement plus PostgreSQL leases as the authoritati
 
 ## API notes
 
-The package release is `3.0.0`; the public transport namespace remains `/api/v1`.
+The package release is `3.9.0`; the public transport namespace remains `/api/v1`.
 
 Create a campaign:
 
@@ -274,6 +289,7 @@ Additional APIs include:
 /api/v1/campaigns/{campaign_id}/scenes
 /api/v1/campaigns/{campaign_id}/director/proposals
 /api/v1/campaigns/{campaign_id}/runtime
+/api/v1/campaigns/{campaign_id}/workbench/*
 /api/v1/studio
 /api/v1/distribution
 ```
@@ -287,6 +303,7 @@ Clients submit commands and consume authoritative results; they never calculate 
 - [`docs/RUNTIME_1_2_TO_1_5.md`](docs/RUNTIME_1_2_TO_1_5.md)
 - [`docs/RUNTIME_1_6_TO_1_8.md`](docs/RUNTIME_1_6_TO_1_8.md)
 - [`docs/RUNTIME_1_9_TO_3_0.md`](docs/RUNTIME_1_9_TO_3_0.md)
+- [`docs/WORKBENCH.md`](docs/WORKBENCH.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Development

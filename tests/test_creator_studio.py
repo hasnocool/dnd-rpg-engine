@@ -98,7 +98,7 @@ def test_platform_app_exposes_v3_health_studio_and_rule_compiler(tmp_path) -> No
     with TestClient(app) as client:
         health = client.get("/health")
         assert health.status_code == 200
-        assert health.json()["version"] == "3.0.0"
+        assert health.json()["version"] == "3.9.0"
         assert health.json()["engine_profile"] == "advanced"
         assert health.json()["platform_profile"] == "world"
 
